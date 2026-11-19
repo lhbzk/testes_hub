@@ -18,12 +18,12 @@ local function atualizarToolRemote()
 end
 atualizarToolRemote()
 UI.InfoBlock(Tabs.Musicas, {
-Title = "Ids Música",
+Title = "Ids Músicas",
 Description = "Ids d músicas",
 Icon = "105472378838470"
-)}
+})
 local idMusicaCustom = ""
-UI.Input(Tabs.Musicas, { Name = "Outro Audio ID", CurrentValue = "", PlaceholderText = "Ex: 9048375035", Callback = function(t) idMusicaCustom = t end })
+UI.Input(Tabs.Musicas, { Name = "Ids De Áudios", CurrentValue = "", PlaceholderText = "Ex: 9048375035", Callback = function(t) idMusicaCustom = t end })
 UI.Button(Tabs.Musicas, {
     Name = "Tocar Audio ID Personalizado",
     Description = "Toca a música pelo ID inserido acima",
@@ -31,9 +31,6 @@ UI.Button(Tabs.Musicas, {
         atualizarToolRemote()
         if PlayerToolEvent and idMusicaCustom ~= "" then
             PlayerToolEvent:FireServer("ToolMusicText", idMusicaCustom)
-            Notify("Música", "ID " .. idMusicaCustom .. " tocando!", 3)
-        else
-            Notify("Aviso", "Digite um ID primeiro", 2)
         end
     end
 })
@@ -51,6 +48,23 @@ local LISTA_FUNK = {
     ["cheiro"]                = "102430799050444",
     ["afrozada"]              = "116257708415048",
     ["sequência de papapey"]  = "127060465281063",
+    ["lampada da sorte"]  = "71393805905055",
+    ["bem louca"]  = "94365050554101",
+    ["jantar em familia"]  = "103043727188319",
+    ["místico 2"]  = "112182302553336",
+    ["koala"]  = "136574160308808",
+    ["tufitufi"]  = "132901244600312",
+    ["madley"]  = "81928219376467",
+    ["mágica 2"]  = "81733205826673",
+    ["desestressabb"]  = "131777662810651",
+    ["mtg jogador raro BH"]  = "94678954269340",
+    ["joga joga"]  = "109330943148950",
+    ["tak"]  = "128417229744862",
+    ["ta nervoso d+"]  = "92999059792601",
+    ["m4"]  = "76707483030355",
+    ["antares"]  = "73461924431293",
+    ["azul piscina"]  = "80512054525157",
+    ["jssr"]  = "99857365723549",
 }
 local LISTA_FORRO = {
     ["uma botadinha"]         = "84624301411909",
@@ -59,6 +73,8 @@ local LISTA_FORRO = {
     ["notificação preferida"] = "90137280531474",
     ["só fé"]                 = "139128878060651",
     ["desça daí seu corno"]   = "1197388789221996",
+    ["até o fim"]  = "139777248910220",
+    ["apaixonei na sua botada"]  = "132901244600372",
 }
 local LISTA_PHONK = {
     ["Phonk"]              = "COLE_O_ID_AQUI",
@@ -127,11 +143,11 @@ local dropdownAlvoTroll = UI.Dropdown(Tabs.Troll, {
 })
 
 UI.Button(Tabs.Troll, {
-    Name = "🔄 Atualizar Lista",
+    Name = "Atualizar Lista",
     Description = "Atualiza a lista de jogadores",
     Callback = function()
         dropdownAlvoTroll:Refresh(obterListaJogadoresTroll())
-        Notify("Troll", "Lista de jogadores atualizada!", 2)
+        Notify("Troll", "Lista de jogadores atualizada.", 2)
     end,
 })
 
@@ -146,7 +162,7 @@ UI.Button(Tabs.Troll, {
 
         local RE = ReplicatedStorage:FindFirstChild("RE")
         local CarRemote = RE and RE:FindFirstChild("1Ca1r")
-        if not CarRemote then Notify("Erro", "Tente Novamente!", 3); return end
+        if not CarRemote then Notify("Erro", "Tente Novamente", 3); return end
 
         local alvo = Players:FindFirstChild(alvoTrollSelecionado)
         if not alvo or not alvo.Character then Notify("Troll", "Selecione um player na lista", 3); return end
@@ -219,7 +235,7 @@ UI.Button(Tabs.Troll, {
                             if myHum then myHum.Sit = false end
                             if myHrp then myHrp.CFrame = CFrame.new(-26, 7, 1) end
                         end)
-                        Notify("Bus Kill", "return: praça", 3)
+                        Notify("Bus Kill", "return: 'praça'", 3)
                         if conexaoSentouBus then conexaoSentouBus:Disconnect() end
                         busAtivo = false
                     end
@@ -334,10 +350,10 @@ local function obterListaProp()
     return lista
 end
 UI.InfoBlock(Tabs.Troll, {
-Title = "Prop Kill | Bring"
-Description = "Mata ou traz o alvo selecionado até vc."
+Title = "Prop Kill | Bring",
+Description = "Mata ou traz o alvo selecionado até vc.",
 Icon = "14436167217"
-)}
+})
 local dropdownProp = UI.Dropdown(Tabs.Troll, {
     Name = "Alvo (Props)",
     Options = obterListaProp(),
@@ -456,7 +472,7 @@ local function executarKillProp(nomeAlvo)
     local agora = encontrarMeusProps()
     local prop = agora[#agora]
     if not prop then
-        Notify("Props", "Clique 1x no chão para liberar o Prop!", 3)
+        Notify("Props", "Clique 1x no chão para liberar o prop", 3)
         local t0 = tick()
         while tick() - t0 < 6 do
             task.wait(0.3)
@@ -504,7 +520,7 @@ local function executarBringProp(nomeAlvo)
     local agora = encontrarMeusProps()
     local prop = agora[#agora]
     if not prop then
-        Notify("Props", "Clique 1x no chão para liberar o Prop!", 3)
+        Notify("Props", "Clique 1x no chão para liberar o Prop", 3)
         local t0 = tick()
         while tick() - t0 < 6 do
             task.wait(0.3)
@@ -544,8 +560,8 @@ UI.Button(Tabs.Troll, {
     Name = "Kill Prop",
     Description = "TP prop: Void",
     Callback = function()
-        if not alvoPropSelecionado then Notify("Props", "Selecione um alvo!", 2); return end
-        if not pegarPropMaker() then Notify("Props", "Falha ao equipar caixa", 2); return end
+        if not alvoPropSelecionado then Notify("Props", "Selecione um alvo", 2); return end
+        if not pegarPropMaker() then Notify("Props", "Falha ao equipar 'caixa de props'.", 2); return end
         selecionarProp()
         Notify("Props", "Iniciando Kill Prop...", 2)
         task.spawn(function() executarKillProp(alvoPropSelecionado) end)
@@ -556,8 +572,8 @@ UI.Button(Tabs.Troll, {
     Name = "Bring Prop (Trazer Alvo)",
     Description = "Traz o player selecionado até vc",
     Callback = function()
-        if not alvoPropSelecionado then Notify("Props", "Selecione um alvo!", 2); return end
-        if not pegarPropMaker() then Notify("Props", "Falha ao equipar caixa", 2); return end
+        if not alvoPropSelecionado then Notify("Props", "Selecione um alvo", 2); return end
+        if not pegarPropMaker() then Notify("Props", "Falha ao equipar 'caixa de props'", 2); return end
         selecionarProp()
         Notify("Props", "Iniciando Bring Prop...", 2)
         task.spawn(function() executarBringProp(alvoPropSelecionado) end)
@@ -567,5 +583,5 @@ UI.Button(Tabs.Troll, {
 UI.Button(Tabs.Troll, {
     Name = "Limpar TODOS os Props",
     Description = "Apaga todos os props do mapa",
-    Callback = function() deletarTodosProps(); Notify("Props", "Props limpos!", 2) end,
+    Callback = function() deletarTodosProps(); Notify("Props", "Props deletados", 2) end,
 })
