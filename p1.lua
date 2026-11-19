@@ -288,7 +288,11 @@ _G.RD4X_TRANSP_CARDS = TRANSP_CARDS
 _G.RD4X_TRANSP_INPUT = TRANSP_INPUT
 _G.RD4X_TRANSP_BOTAO_VERDE = TRANSP_BOTAO_VERDE
 
--- cleanUp (procura em gethui(), CoreGui e PlayerGui)
+-- Gera um ID único para esta execução (ajuda a cancelar loops antigos)
+_G.RD4X_SessionId = (_G.RD4X_SessionId or 0) + 1
+local sessaoAtual = _G.RD4X_SessionId
+
+-- cleanUp ANTES de criar a interface nova
 local nomesAntigos = {
     "Rd4XHubOficial",
     "RD4X_Loading",
@@ -320,6 +324,17 @@ for _, localAlvo in ipairs(locaisBusca) do
         end
     end
 end
+
+-- CRIAÇÃO DO SCREENGUI PRINCIPAL
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "Rd4XHubOficial"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.DisplayOrder = 999
+
+DefinirParentGui(ScreenGui)
+
+_G.RD4X_ScreenGui = ScreenGui
+
 
 
 _G.RD4X_ScreenGui = ScreenGui
