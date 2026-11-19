@@ -1735,15 +1735,23 @@ BotaoReconectar.MouseButton1Click:Connect(function()
     TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 end)
 
--- Auto bio, auto nome personalizado
+-- Auto bio, auto nome personalizado + RGB com velocidade ajustável
+_G.RD4X_RGB_Ativo = true
+_G.RD4X_RGB_Velocidade = "Rapido" -- Opções: "Normal", "Rapido", "MuitoRapido"
+
+local VELOCIDADES_RGB = {
+    Normal = { passo = 0.04, delay = 0.45 },
+    Rapido = { passo = 0.08, delay = 0.18 },
+    MuitoRapido = { passo = 0.14, delay = 0.08 }
+}
 
 task.spawn(function()
     task.wait(2)
     local RE = ReplicatedStorage:FindFirstChild("RE")
     local rpText = RE and RE:FindFirstChild("1RPNam1eTex1t")
     local rpColor = RE and RE:FindFirstChild("1RPNam1eColo1r")
-    
-    if not rpText then
+
+    if not rpText and not rpColor then
         task.wait(2)
         RE = ReplicatedStorage:FindFirstChild("RE")
         rpText = RE and RE:FindFirstChild("1RPNam1eTex1t")
@@ -1751,19 +1759,39 @@ task.spawn(function()
     end
 
     if rpText then
-        -- Aplica a Bio
-        pcall(function() rpText:FireServer("RolePlayBio", "W3lc0m3, " .. LocalPlayer.Name) end)
-        task.wait(0.5)
-        
-        -- Aplica o Nome e a Cor
-        if rpColor then pcall(function() rpColor:FireServer("PickingRPNameColor", COR_VERMELHO) end) end
-        task.wait(0.3)
-        
+        pcall(function()
+            rpText:FireServer("RolePlayBio", "W3lc0m3, " .. LocalPlayer.Name)
+        end)
+        task.wait(0.35)
+
         if LocalPlayer.UserId == MEU_ID_CREATOR then
-            pcall(function() rpText:FireServer("RolePlayName", "👑 Rd4X Creator◾") end)
+            pcall(function()
+                rpText:FireServer("RolePlayName", "👑 Rd4X Creator◾")
+            end)
         else
-            pcall(function() rpText:FireServer("RolePlayName", "🇧🇷 Rd4X User◾") end)
+            pcall(function()
+                rpText:FireServer("RolePlayName", "🇧🇷 Rd4X User◾")
+            end)
+        end
+        task.wait(0.25)
+    end
+
+    local hue = 0
+    while LocalPlayer.Parent do
+        if _G.RD4X_RGB_Ativo then
+            local cfg = VELOCIDADES_RGB[_G.RD4X_RGB_Velocidade] or VELOCIDADES_RGB.Rapido
+            hue = (hue + cfg.passo) % 1
+            local corRGB = Color3.fromHSV(hue, 1, 1)
+
+            if rpColor and rpColor.Parent then
+                pcall(function()
+                    rpColor:FireServer("PickingRPNameColor", corRGB)
+                end)
+            end
+
+            task.wait(cfg.delay)
+        else
+            task.wait(0.3)
         end
     end
 end)
---save
