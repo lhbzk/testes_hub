@@ -1041,7 +1041,7 @@ function UI.InfoBlock(parent, opts)
             img.Size = UDim2.new(0, 18, 0, 18)
             img.Position = UDim2.new(0, 0, 0.5, -9)
             img.BackgroundTransparency = 1
-             Correção: Puxa a imagem igual às abas
+             --Correção: Puxa a imagem igual às abas
             img.Image = "rbxthumb://type=Asset&id=" .. numId .. "&w=150&h=150"
             img.ZIndex = 7
         end
