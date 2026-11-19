@@ -6,6 +6,7 @@ local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
@@ -26,7 +27,7 @@ UI.InfoBlock(Tabs.Teleportes, {
 Title = "Teleportes",
 Description = "Teleporta para locais do Servidor",
 Icon = "6723742959"
-)}
+})
 local function teleportar(x, y, z, nomeLocal)
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(x, y, z)
@@ -58,7 +59,7 @@ UI.InfoBlock(Tabs.Player, {
 Title = "Velocidade | Jump",
 Description = "Velocidade e Pulo do seu personagem",
 Icon = "7992557371"
-)}
+})
 local valorSpeedInput, valorJumpInput = 16, 50
 
 UI.Input(Tabs.Player, { Name = "Selecione Speed", CurrentValue = "16", PlaceholderText = "Velocidade...", Callback = function(v) valorSpeedInput = tonumber(v) or 16 end })
@@ -82,7 +83,7 @@ UI.InfoBlock(Tabs.Player, {
 Title = "free cam | bio",
 Description = "Free Cam e bio personalizada",
 Icon = "7992557371"
-)}
+})
 UI.Button(Tabs.Player, {
     Name = " free cam com noclip",
     Description = "free cam",
@@ -156,7 +157,7 @@ UI.InfoBlock(Tabs.Servidor, {
 Title = "View Cam, tp, etc",
 Description = "View Cam, Tp, entre outros",
 Icon = "14095421789"
-)}
+})
 UI.Button(Tabs.Servidor, { Name = "View Cam", Description = "ver câmera do jogador selecionado", Callback = function()
     local alvo = Players:FindFirstChild(alvoServidorSelecionado)
     if alvo and alvo.Character and alvo.Character:FindFirstChild("Head") then
@@ -311,6 +312,7 @@ local function tableToCFrame(t)
     )
 end
 
+local waypoints = {}
 local function saveWaypoints()
     if type(writefile) ~= "function" then return end
     local serializable = {}
@@ -344,6 +346,7 @@ local function loadWaypoints()
     end
     return loaded
 end
+waypoints = loadWaypoints()
 
 local waypoints = loadWaypoints()
 
@@ -666,7 +669,7 @@ UI.InfoBlock(Tabs.Carros, {
 Title = "Speed",
 Description = "Velocidade do carro",
 Icon = "82734412385826"
-)}
+})
 local velocidadeCarroInput, forcaArrancadaInput = 50, 100
 
 UI.Input(Tabs.Carros, { Name = "Velocidade do Carro", CurrentValue = "50", PlaceholderText = "Velocidade...", Callback = function(v) velocidadeCarroInput = tonumber(v) or 50 end })
@@ -683,7 +686,7 @@ UI.InfoBlock(Tabs.Carros, {
 Title = "Carros Bloqueados",
 Description = "Desbloqueie Carros Bloqueados",
 Icon = "82734412385826"
-)}
+})
 UI.Button(Tabs.Carros, { Name = "Desbloquear carros", Description = "Permite dirigir qualquer carro", Callback = function()
     pcall(function()
         for _, v in ipairs(Workspace:GetDescendants()) do
@@ -840,7 +843,7 @@ UI.InfoBlock(Tabs.Carros, {
 Title = "Bring carros",
 Description = "Bring cars",
 Icon = "82734412385826"
-)}
+})
 UI.Button(Tabs.Carros, {
     Name = "Bring All Vehicles (Indisponível no momento)",
     Description = "Puxa todos os carros do srv",
