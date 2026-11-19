@@ -70,42 +70,76 @@ UI.InfoBlock(Tabs.Protecao, {
     Icon = "5197571759"
 })
 
+local antiAfkConectado = false
 UI.Button(Tabs.Protecao, {
     Name = "Anti-AFK (Evita Desconexão)",
     Description = "Evita desconexão por inatividade",
     Callback = function()
-        pcall(function()
-            local vu = game:GetService("VirtualUser")
-            LocalPlayer.Idled:Connect(function()
-                vu:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
-                task.wait(1)
-                vu:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+        if not antiAfkConectado then
+            antiAfkConectado = true
+            pcall(function()
+                local vu = game:GetService("VirtualUser")
+                LocalPlayer.Idled:Connect(function()
+                    vu:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+                    task.wait(0.5)
+                    vu:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+                end)
             end)
-        end)
+        end
         Notify("Proteção", "Enabled", 3)
     end
 })
 
+-- Invisibilidade limpa (salva transparência original e não deixa bloco cinza)
 local invisivelAtivo = false
+local transparenciasOriginais = {}
+
+local function aplicarInvisibilidade(char, esconder)
+    if not char then return end
+    for _, obj in ipairs(char:GetDescendants()) do
+        if obj.Name ~= "HumanoidRootPart" then
+            if obj:IsA("BasePart") or obj:IsA("Decal") then
+                if esconder then
+                    if transparenciasOriginais[obj] == nil then
+                        transparenciesOriginais[obj] = obj.Transparency
+                    end
+                    obj.Transparency = 1
+                else
+                    if transparenciasOriginais[obj] ~= nil then
+                        obj.Transparency = transparenciasOriginais[obj]
+                    else
+                        obj.Transparency = 0
+                    end
+                end
+            end
+        end
+    end
+    if not esconder then
+        table.clear(transparenciesOriginais)
+    end
+end
+
 UI.Toggle(Tabs.Player, {
     Name = "Invisibilidade",
     CurrentValue = false,
     Callback = function(state)
         invisivelAtivo = state
-        local char = LocalPlayer.Character
-        if not char then return end
         pcall(function()
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") or part:IsA("Decal") then
-                    part.Transparency = invisivelAtivo and 1 or 0
-                elseif part:IsA("Accessory") and part:FindFirstChild("Handle") then
-                    part.Handle.Transparency = invisivelAtivo and 1 or 0
-                end
-            end
+            aplicarInvisibilidade(LocalPlayer.Character, invisivelAtivo)
         end)
         Notify("Player", invisivelAtivo and "Enabled" or "Disabled", 2)
     end
 })
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    table.clear(transparenciesOriginais)
+    if invisivelAtivo then
+        task.wait(0.4)
+        pcall(function()
+            aplicarInvisibilidade(char, true)
+        end)
+    end
+end)
 
 local antiSitAtivo, antiLagAtivo, antiFlingAtivo, noclipAtivo, espAtivo = false, false, false, false, false
 
@@ -116,35 +150,86 @@ UI.Toggle(Tabs.Protecao, {
 })
 
 RunService.Stepped:Connect(function()
-    if antiSitAtivo and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.Sit = false
+    if antiSitAtivo and LocalPlayer.Character then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.Sit then
+            hum.Sit = false
+            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
     end
 end)
 
 UI.Toggle(Tabs.Protecao, {
-    Name = "Anti-Lag (causa travamento no início, mas volta ao normal)",
+    Name = "Anti-Lag",
     CurrentValue = false,
     Callback = function(v)
         antiLagAtivo = v
         if antiLagAtivo then
-            for _, obj in ipairs(Workspace:GetDescendants()) do
-                if obj:IsA("BasePart") then
-                    obj.Material = Enum.Material.SmoothPlastic
+            task.spawn(function()
+                local contador = 0
+                for _, obj in ipairs(Workspace:GetDescendants()) do
+                    if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                        pcall(function()
+                            obj.Enabled = false
+                        end)
+                    end
+                    contador = contador + 1
+                    if contador % 250 == 0 then
+                        task.wait()
+                    end
                 end
-            end
+                Notify("Proteção", "Efeitos pesados reduzidos!", 2)
+            end)
+        else
+            Notify("Proteção", "Anti-Lag desativado.", 2)
         end
     end
 })
 
+-- Anti-Fling focado em teleporte/puxão repentino no Brookhaven
+local ultimaPosSegura = nil
+local lastFlingReset = 0
+
 UI.Toggle(Tabs.Protecao, {
     Name = "Anti-Fling",
     CurrentValue = false,
-    Callback = function(v) antiFlingAtivo = v end
+    Callback = function(v)
+        antiFlingAtivo = v
+        ultimaPosSegura = nil
+        Notify("Proteção", v and "Anti-Fling ativo!" or "Anti-Fling desativado.", 2)
+    end
 })
 
-RunService.Stepped:Connect(function()
-    if antiFlingAtivo and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        LocalPlayer.Character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+RunService.Heartbeat:Connect(function()
+    if not antiFlingAtivo then return end
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum then return end
+
+    -- Zera forças de arremesso contínuas
+    if hrp.AssemblyLinearVelocity.Magnitude > 95 then
+        hrp.AssemblyLinearVelocity = Vector3.zero
+    end
+    if hrp.AssemblyAngularVelocity.Magnitude > 25 then
+        hrp.AssemblyAngularVelocity = Vector3.zero
+    end
+
+    local posAtual = hrp.Position
+    if ultimaPosSegura then
+        local distancia = (posAtual - ultimaPosSegura).Magnitude
+        -- Detecta teleporte/puxão repentino fora do normal e puxa de volta
+        if distancia > 35 and (os.clock() - lastFlingReset) > 0.35 then
+            lastFlingReset = os.clock()
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+            hrp.CFrame = CFrame.new(ultimaPosSegura + Vector3.new(0, 1.5, 0))
+            return
+        end
+    end
+
+    if hum:GetState() ~= Enum.HumanoidStateType.Seated and hum:GetState() ~= Enum.HumanoidStateType.PlatformStanding then
+        ultimaPosSegura = posAtual
     end
 end)
 
@@ -182,7 +267,7 @@ UI.Toggle(Tabs.Protecao, {
                             local tl = Instance.new("TextLabel", bg)
                             tl.Size = UDim2.new(1, 0, 1, 0)
                             tl.BackgroundTransparency = 1
-                            tl.TextColor3 = COR_VERMELHO
+                            tl.TextColor3 = _G.RD4X_COR_VERMELHO or COR_VERMELHO
                             tl.TextStrokeTransparency = 0
                             tl.TextSize = 14
                             tl.Text = p.Name
@@ -237,37 +322,83 @@ UI.InfoBlock(Tabs.Config, {
     Icon = "134966548587596"
 })
 
+local PALETA_CORES = {
+    ["Vermelho (Padrão)"] = Color3.fromRGB(220, 20, 60),
+    ["Verde"]              = Color3.fromRGB(46, 204, 113),
+    ["Azul"]               = Color3.fromRGB(52, 152, 219),
+    ["Roxo"]               = Color3.fromRGB(155, 89, 182),
+    ["Amarelo"]            = Color3.fromRGB(241, 196, 15),
+    ["Laranja"]            = Color3.fromRGB(230, 126, 34),
+    ["Rosa"]               = Color3.fromRGB(255, 105, 180),
+    ["Turquesa"]           = Color3.fromRGB(26, 188, 156),
+}
+
+local NOMES_CORES = {
+    "Vermelho (Padrão)",
+    "Verde",
+    "Azul",
+    "Roxo",
+    "Amarelo",
+    "Laranja",
+    "Rosa",
+    "Turquesa",
+}
+
+local corDestaqueAnterior = _G.RD4X_COR_VERMELHO or COR_VERMELHO
+
 local function trocarCorHub(novaCor)
+    if not novaCor then return end
+    local corAntiga = corDestaqueAnterior
+    corDestaqueAnterior = novaCor
+    COR_VERMELHO = novaCor
     COR_VERDE = novaCor
+    _G.RD4X_COR_VERMELHO = novaCor
+    _G.RD4X_COR_VERDE = novaCor
+
     if ScreenGui and ScreenGui.Parent then
-        for _, gui in ipairs(ScreenGui:GetDescendants()) do
+        for _, obj in ipairs(ScreenGui:GetDescendants()) do
             pcall(function()
-                if gui:IsA("UIStroke") and (gui.Color == Color3.fromRGB(46, 204, 113) or gui.Color == Color3.fromRGB(240, 240, 245)) then
-                    gui.Color = novaCor
-                end
-                if gui:IsA("TextLabel") and gui.TextColor3 == Color3.fromRGB(46, 204, 113) then
-                    gui.TextColor3 = novaCor
-                end
-                if gui:IsA("TextButton") and gui.BackgroundColor3 == Color3.fromRGB(46, 204, 113) then
-                    gui.BackgroundColor3 = novaCor
-                end
-                if gui:IsA("Frame") and gui.BackgroundColor3 == Color3.fromRGB(46, 204, 113) then
-                    gui.BackgroundColor3 = novaCor
+                if obj:IsA("UIStroke") then
+                    if obj.Color == corAntiga or obj.Color == Color3.fromRGB(220, 20, 60) or obj.Color == Color3.fromRGB(46, 204, 113) then
+                        obj.Color = novaCor
+                    end
+                elseif obj:IsA("ScrollingFrame") then
+                    if obj.ScrollBarImageColor3 == corAntiga or obj.ScrollBarImageColor3 == Color3.fromRGB(220, 20, 60) or obj.ScrollBarImageColor3 == Color3.fromRGB(46, 204, 113) then
+                        obj.ScrollBarImageColor3 = novaCor
+                    end
+                elseif obj:IsA("Frame") or obj:IsA("TextButton") then
+                    if obj.BackgroundColor3 == corAntiga or obj.BackgroundColor3 == Color3.fromRGB(220, 20, 60) or obj.BackgroundColor3 == Color3.fromRGB(46, 204, 113) then
+                        obj.BackgroundColor3 = novaCor
+                    end
+                elseif obj:IsA("TextLabel") then
+                    if obj.TextColor3 == corAntiga or obj.TextColor3 == Color3.fromRGB(220, 20, 60) or obj.TextColor3 == Color3.fromRGB(46, 204, 113) then
+                        obj.TextColor3 = novaCor
+                    end
                 end
             end)
         end
     end
-    Notify("Config", "Cor aplicada!", 2)
+
+    local botaoFlutuante = ScreenGui and ScreenGui:FindFirstChild("BotaoFlutuanteRD4X")
+    local strokeBF = botaoFlutuante and botaoFlutuante:FindFirstChildOfClass("UIStroke")
+    if strokeBF then
+        strokeBF.Color = novaCor
+    end
+
+    Notify("Config", "Cor do hub atualizada!", 2)
 end
 
-UI.Button(Tabs.Config, { Name = "Verde (padrão)", Description = "Aplica a cor Verde no script", Callback = function() trocarCorHub(Color3.fromRGB(46, 204, 113)) end })
-UI.Button(Tabs.Config, { Name = "Azul",           Description = "Aplica a cor Azul no script", Callback = function() trocarCorHub(Color3.fromRGB(52, 152, 219)) end })
-UI.Button(Tabs.Config, { Name = "Roxo",           Description = "Aplica a cor Roxo no script", Callback = function() trocarCorHub(Color3.fromRGB(155, 89, 182)) end })
-UI.Button(Tabs.Config, { Name = "Vermelho",       Description = "Aplica a cor Vermelho no script", Callback = function() trocarCorHub(Color3.fromRGB(231, 76, 60)) end })
-UI.Button(Tabs.Config, { Name = "Amarelo",        Description = "Aplica a cor Amarelo no script", Callback = function() trocarCorHub(Color3.fromRGB(241, 196, 15)) end })
-UI.Button(Tabs.Config, { Name = "Laranja",        Description = "Aplica a cor Laranja no script", Callback = function() trocarCorHub(Color3.fromRGB(230, 126, 34)) end })
-UI.Button(Tabs.Config, { Name = "Rosa",           Description = "Aplica a cor Rosa no script", Callback = function() trocarCorHub(Color3.fromRGB(255, 105, 180)) end })
-UI.Button(Tabs.Config, { Name = "Turquesa",       Description = "Aplica a cor Turquesa no script", Callback = function() trocarCorHub(Color3.fromRGB(26, 188, 156)) end })
+UI.Dropdown(Tabs.Config, {
+    Name = "Cor do Hub",
+    Options = NOMES_CORES,
+    CurrentOption = {"Vermelho (Padrão)"},
+    Callback = function(opt)
+        local escolhido = opt and opt[1]
+        if escolhido and PALETA_CORES[escolhido] then
+            trocarCorHub(PALETA_CORES[escolhido])
+        end
+    end
+})
 
 UI.Toggle(Tabs.Config, {
     Name = "Notificações",
@@ -287,6 +418,7 @@ UI.Toggle(Tabs.Config, {
     end
 })
 
+-- Música de fundo, volume e botão mantidos sem mexer
 UI.Toggle(Tabs.Config, {
     Name = "Música de Fundo",
     CurrentValue = true,
@@ -396,7 +528,7 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
--- ABA SCRIPTS
+-- ABA SCRIPTS (RESERVADA PARA SCRIPTS FUTUROS)
 --------------------------------------------------------------------------------
 UI.InfoBlock(Tabs.Scripts, {
     Title = "Scripts Oficiais",
@@ -685,7 +817,7 @@ end)
 Notify("RD4X Hub", "Interface carregada com sucesso!", 4)
 
 --------------------------------------------------------------------------------
--- MÚSICA DE FUNDO (CONFIGURE UM ID VÁLIDO SE QUISER TOCAR)
+-- MÚSICA DE FUNDO (MANTIDO SEM MEXER)
 --------------------------------------------------------------------------------
 _G.RD4X_MusicaFundo = Instance.new("Sound", SoundService)
 _G.RD4X_MusicaFundo.SoundId = "rbxassetid://1843525279"
@@ -758,7 +890,7 @@ UI.Button(Tabs.Player, {
 })
 
 --------------------------------------------------------------------------------
--- SEGUNDO MENU VIP/ADMIN
+-- SEGUNDO MENU VIP/ADMIN (MANTIDO SEM MEXER)
 --------------------------------------------------------------------------------
 local UsuarioAutorizado = true
 if UsuarioAutorizado or _G.RD4X_Autorizado == nil then
