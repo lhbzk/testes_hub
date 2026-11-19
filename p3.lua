@@ -260,7 +260,7 @@ UI.Button(Tabs.Troll, { --[span_192](start_span)[span_192](end_span)
     Description = "Cancela a perseguição", --[span_194](start_span)[span_194](end_span)
     Callback = function() busAtivo = false; Notify("Troll", "Bus Kill desativado", 2) end, --[span_195](start_span)[span_195](end_span)
 })
-
+--[[
 --------------------------------------------------------------------------------
 -- VEÍCULOS / ÔNIBUS AVANÇADO (DELETA APÓS MATAR / LOOP NO ALL ATÉ DESLIGAR)
 --------------------------------------------------------------------------------
@@ -487,7 +487,7 @@ UI.Toggle(Tabs.Troll, { --[span_304](start_span)[span_304](end_span)
         end)
     end
 })
-
+--[[
 -- PROPS --[span_327](start_span)[span_327](end_span)
 local PROP_KILL_Y      = -300 --[span_328](start_span)[span_328](end_span)
 local PROP_MOVE_SPEED  = 6 --[span_329](start_span)[span_329](end_span)
@@ -739,7 +739,7 @@ UI.Button(Tabs.Troll, { --[span_524](start_span)[span_524](end_span)
     Description = "Apaga todos os props do mapa", --[span_526](start_span)[span_526](end_span)
     Callback = function() deletarTodosProps(); Notify("Props", "Props deletados", 2) end, --[span_527](start_span)[span_527](end_span)
 })
-
+--[[
 --------------------------------------------------------------------------------
 -- PAINEL DE PROPS AVANÇADOS (MOVIMENTO RÁPIDO / VOID RÁPIDO / SEM AUTO-DELETE) --[span_528](start_span)[span_528](end_span)
 --------------------------------------------------------------------------------
@@ -1130,3 +1130,4 @@ UI.Toggle(Tabs.Troll, { --[span_749](start_span)[span_749](end_span)
         end)
     end
 })
+--]]
