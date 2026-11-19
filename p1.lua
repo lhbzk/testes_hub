@@ -13,7 +13,6 @@ local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
 --COMPATIBILIDADE BROOKHAVEN
-
 local BROOKHAVEN_PLACE_ID = 4924922222
 local BROOKHAVEN_UNIVERSE_ID = 1686885941
 
@@ -198,6 +197,9 @@ if not jogoCompativel then
     -- Não permite que o restante do hub seja executado
     return
 end
+
+--Confirmado o placeid:
+-- (Daqui pra baixo continua o resto normal do seu código original, MEU_ID_CREATOR, UI, etc...)
 
 --Confirmado o placeid:
 
