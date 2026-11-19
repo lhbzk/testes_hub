@@ -22,13 +22,26 @@ local jogoCompativel =
     or game.GameId == BROOKHAVEN_UNIVERSE_ID
 
 if not jogoCompativel then
+    _G.RD4X_Incompativel = true -- Avisa o loader para não carregar as outras partes
+
     -- RD4X | Tela de incompatibilidade minimalista
     local incompatGui = Instance.new("ScreenGui")
     incompatGui.Name = "RD4X_Incompatible"
     incompatGui.IgnoreGuiInset = true
     incompatGui.ResetOnSpawn = false
     incompatGui.DisplayOrder = 999999
-    incompatGui.Parent = CoreGui
+    
+    -- Correção: Tenta usar gethui() (bypassa proteção do CoreGui em executores)
+    -- Se falhar, joga no PlayerGui.
+    local parentGui
+    pcall(function()
+        parentGui = (gethui and gethui()) or CoreGui
+        incompatGui.Parent = parentGui
+    end)
+    
+    if not incompatGui.Parent then
+        incompatGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    end
 
     local function criar(class, props, target)
         local obj = Instance.new(class)
@@ -182,7 +195,7 @@ if not jogoCompativel then
 
     button.MouseButton1Click:Connect(fechar)
 
-    -- Não permite que o restante do hub seja executado em jogos incompatíveis
+    -- Não permite que o restante do hub seja executado
     return
 end
 
@@ -1001,7 +1014,7 @@ function UI.InfoBlock(parent, opts)
             img.Size = UDim2.new(0, 18, 0, 18)
             img.Position = UDim2.new(0, 0, 0.5, -9)
             img.BackgroundTransparency = 1
-            -- Correção: Puxa a imagem igual às abas
+             Correção: Puxa a imagem igual às abas
             img.Image = "rbxthumb://type=Asset&id=" .. numId .. "&w=150&h=150"
             img.ZIndex = 7
         end
