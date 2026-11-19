@@ -1381,6 +1381,122 @@ function UI.Dropdown(parent, opts)
     end
 }
 end
+function UI.Slider(parent, opts)
+    local minVal = opts.Min or 1
+    local maxVal = opts.Max or 100
+    local defaultVal = math.clamp(opts.CurrentValue or minVal, minVal, maxVal)
+    local suffix = opts.Suffix or ""
+
+    local container = Instance.new("Frame", parent)
+    container.Size = UDim2.new(1, -4, 0, 42)
+    container.BackgroundColor3 = COR_SECUNDARIA
+    container.BackgroundTransparency = TRANSP_CARDS
+    container.BorderSizePixel = 0
+    container.ZIndex = 6
+    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 6)
+
+    local titleLbl = Instance.new("TextLabel", container)
+    titleLbl.Size = UDim2.new(0.65, -10, 0, 16)
+    titleLbl.Position = UDim2.new(0, 10, 0, 5)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = opts.Name or "Velocidade"
+    titleLbl.TextColor3 = COR_TEXTO
+    titleLbl.TextSize = 10
+    titleLbl.Font = Enum.Font.GothamMedium
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    titleLbl.ZIndex = 7
+
+    local valueLbl = Instance.new("TextLabel", container)
+    valueLbl.Size = UDim2.new(0.35, -10, 0, 16)
+    valueLbl.Position = UDim2.new(0.65, 0, 0, 5)
+    valueLbl.BackgroundTransparency = 1
+    valueLbl.Text = tostring(defaultVal) .. suffix
+    valueLbl.TextColor3 = COR_TEXTO_CINZA
+    valueLbl.TextSize = 10
+    valueLbl.Font = Enum.Font.GothamBold
+    valueLbl.TextXAlignment = Enum.TextXAlignment.Right
+    valueLbl.ZIndex = 7
+
+    local track = Instance.new("TextButton", container)
+    track.Size = UDim2.new(1, -20, 0, 6)
+    track.Position = UDim2.new(0, 10, 0, 27)
+    track.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
+    track.BorderSizePixel = 0
+    track.Text = ""
+    track.AutoButtonColor = false
+    track.ZIndex = 7
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+    local fill = Instance.new("Frame", track)
+    fill.Size = UDim2.new((defaultVal - minVal) / math.max(maxVal - minVal, 1), 0, 1, 0)
+    fill.BackgroundColor3 = _G.RD4X_COR_VERMELHO
+    fill.BorderSizePixel = 0
+    fill.ZIndex = 8
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+    local knob = Instance.new("Frame", track)
+    knob.Size = UDim2.new(0, 12, 0, 12)
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.Position = UDim2.new((defaultVal - minVal) / math.max(maxVal - minVal, 1), 0, 0.5, 0)
+    knob.BackgroundColor3 = COR_TEXTO
+    knob.BorderSizePixel = 0
+    knob.ZIndex = 9
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+    local currentVal = defaultVal
+    local draggingSlider = false
+
+    local function setSliderFromX(posX)
+        local absPos = track.AbsolutePosition.X
+        local absSize = math.max(track.AbsoluteSize.X, 1)
+        local alpha = math.clamp((posX - absPos) / absSize, 0, 1)
+        local raw = minVal + (maxVal - minVal) * alpha
+        local stepped = math.floor(raw + 0.5)
+        currentVal = stepped
+
+        local norm = (currentVal - minVal) / math.max(maxVal - minVal, 1)
+        fill.Size = UDim2.new(norm, 0, 1, 0)
+        knob.Position = UDim2.new(norm, 0, 0.5, 0)
+        valueLbl.Text = tostring(currentVal) .. suffix
+
+        if opts.Callback then
+            pcall(opts.Callback, currentVal)
+        end
+    end
+
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingSlider = true
+            setSliderFromX(input.Position.X)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if draggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            setSliderFromX(input.Position.X)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingSlider = false
+        end
+    end)
+
+    return {
+        Set = function(v)
+            currentVal = math.clamp(math.floor((tonumber(v) or minVal) + 0.5), minVal, maxVal)
+            local norm = (currentVal - minVal) / math.max(maxVal - minVal, 1)
+            fill.Size = UDim2.new(norm, 0, 1, 0)
+            knob.Position = UDim2.new(norm, 0, 0.5, 0)
+            valueLbl.Text = tostring(currentVal) .. suffix
+            if opts.Callback then
+                pcall(opts.Callback, currentVal)
+            end
+        end
+    }
+end
+
 _G.RD4X_UI = UI
 
 --Sistemas De Abas
@@ -1472,6 +1588,7 @@ local Tabs = {
     Player    = CreateTab("Jogador", "7992557371"),
     Skins = CreateTab("Skins", "11955919656"),
     Servidor  = CreateTab("Servidor", "14095421789"),
+    Rgb = CreateTab("RGB", "107865760439298"),
     Carros    = CreateTab("Veículo", "82734412385826"),
     Casas     = CreateTab("Casa", "18923169586"),
     SomAll = CreateTab("SomAll", "137483969436938"),
@@ -1735,16 +1852,7 @@ BotaoReconectar.MouseButton1Click:Connect(function()
     TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 end)
 
--- Auto bio, auto nome personalizado + RGB com velocidade ajustável
-_G.RD4X_RGB_Ativo = true
-_G.RD4X_RGB_Velocidade = "Rapido" -- Opções: "Normal", "Rapido", "MuitoRapido"
-
-local VELOCIDADES_RGB = {
-    Normal = { passo = 0.04, delay = 0.45 },
-    Rapido = { passo = 0.08, delay = 0.18 },
-    MuitoRapido = { passo = 0.14, delay = 0.08 }
-}
-
+-- Auto bio, auto nome personalizado + loop RGB (Nome e Bio)
 task.spawn(function()
     task.wait(2)
     local RE = ReplicatedStorage:FindFirstChild("RE")
@@ -1759,37 +1867,39 @@ task.spawn(function()
     end
 
     if rpText then
-        pcall(function()
-            rpText:FireServer("RolePlayBio", "W3lc0m3, " .. LocalPlayer.Name)
-        end)
-        task.wait(0.35)
+        pcall(function() rpText:FireServer("RolePlayBio", "W3lc0m3, " .. LocalPlayer.Name) end)
+        task.wait(0.4)
 
         if LocalPlayer.UserId == MEU_ID_CREATOR then
-            pcall(function()
-                rpText:FireServer("RolePlayName", "👑 Rd4X Creator◾")
-            end)
+            pcall(function() rpText:FireServer("RolePlayName", "👑 Rd4X Creator◾") end)
         else
-            pcall(function()
-                rpText:FireServer("RolePlayName", "🇧🇷 Rd4X User◾")
-            end)
+            pcall(function() rpText:FireServer("RolePlayName", "🇧🇷 Rd4X User◾") end)
         end
-        task.wait(0.25)
+        task.wait(0.3)
     end
 
-    local hue = 0
+    local ciclo = 0
     while LocalPlayer.Parent do
-        if _G.RD4X_RGB_Ativo then
-            local cfg = VELOCIDADES_RGB[_G.RD4X_RGB_Velocidade] or VELOCIDADES_RGB.Rapido
-            hue = (hue + cfg.passo) % 1
-            local corRGB = Color3.fromHSV(hue, 1, 1)
+        local cfg = _G.RD4X_RGB
+        if cfg and cfg.Ativo then
+            local vel = VELOCIDADES_RGB[cfg.Velocidade] or VELOCIDADES_RGB["Rápido"]
+            ciclo = (ciclo + vel.passo) % 1
+            local corAtual = calcularCorRGB(ciclo)
 
             if rpColor and rpColor.Parent then
-                pcall(function()
-                    rpColor:FireServer("PickingRPNameColor", corRGB)
-                end)
+                if cfg.NomeAtivo then
+                    pcall(function()
+                        rpColor:FireServer("PickingRPNameColor", corAtual)
+                    end)
+                end
+                if cfg.BioAtiva then
+                    pcall(function()
+                        rpColor:FireServer("PickingRPBioColor", corAtual)
+                    end)
+                end
             end
 
-            task.wait(cfg.delay)
+            task.wait(vel.delay)
         else
             task.wait(0.3)
         end
