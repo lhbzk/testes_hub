@@ -198,6 +198,33 @@ if not jogoCompativel then
     return
 end
 
+-- PARENT DA INTERFACE | COMPATIBILIDADE COM EXECUTORES
+local function DefinirParentGui(gui)
+    local pais = {}
+
+    if type(gethui) == "function" then
+        local sucesso, hui = pcall(gethui)
+        if sucesso and hui then
+            table.insert(pais, hui)
+        end
+    end
+
+    table.insert(pais, CoreGui)
+    table.insert(pais, LocalPlayer:WaitForChild("PlayerGui"))
+
+    for _, parent in ipairs(pais) do
+        local sucesso = pcall(function()
+            gui.Parent = parent
+        end)
+
+        if sucesso and gui.Parent == parent then
+            return parent
+        end
+    end
+
+    error("[RD4X] Não foi possível definir o parent da interface")
+end
+
 --Confirmado o placeid:
 -- (Daqui pra baixo continua o resto normal do seu código original, MEU_ID_CREATOR, UI, etc...)
 
@@ -273,7 +300,9 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Rd4XHubOficial"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.DisplayOrder = 999
-ScreenGui.Parent = CoreGui
+
+DefinirParentGui(ScreenGui)
+
 _G.RD4X_ScreenGui = ScreenGui
 
 --Botão flutuante
@@ -387,11 +416,7 @@ gui.IgnoreGuiInset = true
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 999999
 
-local parent
-pcall(function()
-    if gethui then parent = gethui() end
-end)
-gui.Parent = parent or CoreGui
+DefinirParentGui(gui)
 
 local function create(class, props, parentObject)
     local obj = Instance.new(class)
