@@ -514,11 +514,11 @@ UI.Button(Tabs.Troll, {
 })
 
 --------------------------------------------------------------------------------
--- PAINEL DE PROPS AVANÇADOS (FORÇA 20 NO ALL / 1 NO PLAYER / SEM AUTO-DELETE)
+-- PAINEL DE PROPS AVANÇADOS (MOVIMENTO RÁPIDO / VOID RÁPIDO / SEM AUTO-DELETE)
 --------------------------------------------------------------------------------
 UI.InfoBlock(Tabs.Troll, {
     Title = "🚽🪑 Props Avançados (Lote de 20)",
-    Description = "Spawna até 20 props no all, sobe e desce no alvo e só apaga ao desligar.",
+    Description = "Sobe e desce rápido no alvo até sentar (Kill/Bring), até 20 no all, sem auto-delete.",
     Icon = "14436167217"
 })
 
@@ -583,6 +583,10 @@ end
 -- LÓGICA E CONFIGURAÇÕES DO PROP
 -- ============================================================================
 local TOTAL_PROPS_ALL = 20
+local VELOCIDADE_SUBIDA_DESCIDA = 26
+local AMPLITUDE_SUBIDA_DESCIDA = 3.5
+local TEMPO_MAX_ALVO_RAPIDO = 1.6
+
 local CONFIG_PROPS_AVANCADO = {
     Bancada = { nome = "FurnitureBleachers", categoria = "Furniture" },
     Privada = { nome = "Toilet", categoria = "Furniture" }
@@ -599,9 +603,9 @@ local function selecionarEquipamentoProp(chave)
     local clearRemote = RE and RE:FindFirstChild("1Clea1rTool1s")
     if not clearRemote then return end
     pcall(function() clearRemote:FireServer("OpenPropMenu") end)
-    task.wait(0.2)
+    task.wait(0.15)
     pcall(function() clearRemote:FireServer("RequestingPropName", info.nome, info.categoria) end)
-    task.wait(0.25)
+    task.wait(0.2)
 end
 
 local function obterChaoParaSpawn(posicaoBase)
@@ -697,7 +701,7 @@ local function obterAlvosSemVoce()
     return lista
 end
 
--- FASE 1: Insiste até completar 20 props (no all) ou 1 prop (no player) antes de sair
+-- FASE 1: Garante ou spawna até 20 props (no all) ou 1 prop (no player) afastados entre si e de você
 local function spawnarLoteCompleto(modoEfetivo, posBase)
     local quantidadeDesejada = (modoEfetivo == "all") and TOTAL_PROPS_ALL or 1
     local propsAtuais = coletarPropsDisponiveis(quantidadeDesejada)
@@ -727,7 +731,7 @@ local function spawnarLoteCompleto(modoEfetivo, posBase)
             end)
         end
 
-        task.wait(0.25)
+        task.wait(0.22)
         propsAtuais = coletarPropsDisponiveis(quantidadeDesejada)
 
         if #propsAtuais >= quantidadeDesejada then
@@ -738,80 +742,80 @@ local function spawnarLoteCompleto(modoEfetivo, posBase)
     return coletarPropsDisponiveis(quantidadeDesejada)
 end
 
--- FASE 2: Sobe e desce no avatar do alvo até ele sentar, executa Kill/Bring e troca rápido
-local function rodarEnxameProps(propsLote, acao)
-    local indiceAlvoGlobal = 1
-    local estadoPorProp = {}
+-- FASE 2: Subida/descida rápida no alvo + void/bring imediato ao sentar + troca veloz de alvo
+local function controlarPropSubindoDescendo(prop, idxProp, acao, obterAlvosFn, indiceRef)
+    local fase = idxProp * 1.35
 
-    local function proximoAlvo(listaAlvos)
-        if #listaAlvos == 0 then return nil end
-        if indiceAlvoGlobal > #listaAlvos then
-            indiceAlvoGlobal = 1
-        end
-        local escolhido = listaAlvos[indiceAlvoGlobal]
-        indiceAlvoGlobal = indiceAlvoGlobal + 1
-        return escolhido
-    end
-
-    while propAvancadoAtivo do
-        local alvos = obterAlvosSemVoce()
+    while propAvancadoAtivo and prop and prop.Parent do
+        local alvos = obterAlvosFn()
         if #alvos == 0 then
-            task.wait(0.25)
+            task.wait(0.15)
             continue
         end
 
-        for idxProp, prop in ipairs(propsLote) do
-            if not propAvancadoAtivo then break end
-            if prop and prop.Parent then
-                local st = estadoPorProp[prop]
-                if not st then
-                    st = { alvo = proximoAlvo(alvos), inicioAlvo = tick(), concluido = false }
-                    estadoPorProp[prop] = st
-                end
+        if indiceRef.atual > #alvos then
+            indiceRef.atual = 1
+        end
+        local alvo = alvos[indiceRef.atual]
+        indiceRef.atual = indiceRef.atual + 1
 
-                local alvo = st.alvo
-                local char = alvo and alvo.Character
+        if alvo and alvo ~= LocalPlayer and alvo.Character then
+            local tInicioAlvo = tick()
+
+            while propAvancadoAtivo and prop.Parent and alvo.Parent and (tick() - tInicioAlvo < TEMPO_MAX_ALVO_RAPIDO) do
+                local char = alvo.Character
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
-
-                if not alvo or alvo == LocalPlayer or not alvo.Parent or not char or not hrp or not hum or hum.Health <= 0 or (tick() - st.inicioAlvo > 2.2) then
-                    st.alvo = proximoAlvo(alvos)
-                    st.inicioAlvo = tick()
-                    st.concluido = false
-                    alvo = st.alvo
-                    char = alvo and alvo.Character
-                    hrp = char and char:FindFirstChild("HumanoidRootPart")
-                    hum = char and char:FindFirstChildOfClass("Humanoid")
+                if not hrp or not hum or hum.Health <= 0 then
+                    break
                 end
 
-                if alvo and alvo ~= LocalPlayer and hrp and hum and hum.Health > 0 then
-                    if not st.concluido then
-                        local t = tick() * PROP_MOVE_SPEED + idxProp
-                        local offsetY = math.sin(t) * PROP_MOVE_RANGE
-                        local cfMira = CFrame.new(hrp.Position + Vector3.new(0, offsetY, 0))
-                        moverProp(prop, cfMira)
+                local ondaY = math.sin((tick() * VELOCIDADE_SUBIDA_DESCIDA) + fase) * AMPLITUDE_SUBIDA_DESCIDA
+                local posOscilando = Vector3.new(hrp.Position.X, hrp.Position.Y + ondaY, hrp.Position.Z)
+                moverProp(prop, CFrame.new(posOscilando))
 
-                        if hum.Sit then
-                            st.concluido = true
-                            task.wait(0.08)
-                            if acao == "KILL" then
-                                moverProp(prop, CFrame.new(hrp.Position.X, PROP_KILL_Y, hrp.Position.Z))
-                            elseif acao == "BRING" then
-                                local meuHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                                if meuHrp then
-                                    moverProp(prop, meuHrp.CFrame * CFrame.new(2, 0, 0))
-                                end
-                            end
-                            st.alvo = proximoAlvo(alvos)
-                            st.inicioAlvo = tick()
-                            st.concluido = false
+                if hum.Sit then
+                    task.wait(0.02)
+                    if acao == "KILL" then
+                        local cfVoid = CFrame.new(hrp.Position.X, PROP_KILL_Y, hrp.Position.Z)
+                        moverProp(prop, cfVoid)
+                        task.wait(0.02)
+                        moverProp(prop, cfVoid)
+                    elseif acao == "BRING" then
+                        local meuHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if meuHrp then
+                            local cfBring = meuHrp.CFrame * CFrame.new(2, 0, 0)
+                            moverProp(prop, cfBring)
+                            task.wait(0.02)
+                            moverProp(prop, cfBring)
                         end
                     end
+                    task.wait(0.06)
+                    break
                 end
-            end
-        end
 
-        task.wait(0.05)
+                task.wait(0.02)
+            end
+        else
+            task.wait(0.06)
+        end
+    end
+end
+
+local function rodarEnxameProps(propsLote, acao)
+    local indiceRef = { atual = 1 }
+
+    for idxProp, prop in ipairs(propsLote) do
+        if prop and prop.Parent then
+            task.spawn(function()
+                controlarPropSubindoDescendo(prop, idxProp, acao, obterAlvosSemVoce, indiceRef)
+            end)
+        end
+        task.wait(0.02)
+    end
+
+    while propAvancadoAtivo do
+        task.wait(0.2)
     end
 end
 
