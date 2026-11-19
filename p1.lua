@@ -334,7 +334,7 @@ ScreenGui.DisplayOrder = 999
 DefinirParentGui(ScreenGui)
 
 _G.RD4X_ScreenGui = ScreenGui
-
+ 
 
 
 _G.RD4X_ScreenGui = ScreenGui
@@ -1640,6 +1640,329 @@ _G.RD4X_Tabs = Tabs
 _G.RD4X_TabFrames = TabFrames
 _G.RD4X_TabButtons = TabButtons
 
+-- ============================================================================
+-- TELA GLOBAL PRETA TRANSLÚCIDA + LOOP + ABA EXCLUSIVA DO CRIADOR (ID: 4200878493)
+-- ============================================================================
+local GLOBAL_MSG_ENDPOINT = API_URL .. "/api/v2/global-message"
+_G.RD4X_UltimoAvisoId = _G.RD4X_UltimoAvisoId or nil
+
+local function fazerHttpGlobal(opcoes)
+    local reqFn = (syn and syn.request)
+        or (http and http.request)
+        or http_request
+        or request
+
+    if reqFn then
+        local ok, resp = pcall(reqFn, opcoes)
+        if ok and resp then
+            return true, resp.Body, resp.StatusCode
+        end
+        return false, nil, nil
+    end
+
+    if opcoes.Method == "GET" then
+        local ok, body = pcall(function()
+            return game:HttpGet(opcoes.Url)
+        end)
+        if ok and body then
+            return true, body, 200
+        end
+    end
+
+    return false, nil, nil
+end
+
+local function mostrarTelaAvisoGlobal(titulo, mensagem, duracao)
+    if not ScreenGui or not ScreenGui.Parent then return end
+
+    local antigo = ScreenGui:FindFirstChild("RD4X_GlobalFullScreen")
+    if antigo then
+        antigo:Destroy()
+    end
+
+    local tempoTotal = tonumber(duracao) or 6
+
+    pcall(function()
+        if ScreenGui:IsA("ScreenGui") then
+            ScreenGui.IgnoreGuiInset = true
+        end
+    end)
+
+    local telaPreta = Instance.new("Frame")
+    telaPreta.Name = "RD4X_GlobalFullScreen"
+    telaPreta.Size = UDim2.new(1, 0, 1, 0)
+    telaPreta.Position = UDim2.new(0, 0, 0, 0)
+    telaPreta.BackgroundColor3 = Color3.fromRGB(6, 8, 12)
+    telaPreta.BackgroundTransparency = 1
+    telaPreta.BorderSizePixel = 0
+    telaPreta.ZIndex = 9999
+    telaPreta.Parent = ScreenGui
+
+    local container = Instance.new("Frame")
+    container.Name = "Container"
+    container.AnchorPoint = Vector2.new(0.5, 0.5)
+    container.Position = UDim2.new(0.5, 0, 0.5, 0)
+    container.Size = UDim2.new(0.84, 0, 0.68, 0)
+    container.BackgroundTransparency = 1
+    container.ZIndex = 10000
+    container.Parent = telaPreta
+
+    local maxSize = Instance.new("UISizeConstraint")
+    maxSize.MaxSize = Vector2.new(680, 380)
+    maxSize.MinSize = Vector2.new(260, 180)
+    maxSize.Parent = container
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Vertical
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    layout.Padding = UDim.new(0, 14)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = container
+
+    local tag = Instance.new("TextLabel")
+    tag.Name = "Tag"
+    tag.LayoutOrder = 1
+    tag.Size = UDim2.new(1, 0, 0, 22)
+    tag.BackgroundTransparency = 1
+    tag.Text = "RD4X HUB  •  AVISO GLOBAL"
+    tag.TextColor3 = Color3.fromRGB(96, 165, 250)
+    tag.TextTransparency = 1
+    tag.TextSize = 12
+    tag.Font = Enum.Font.GothamBold
+    tag.ZIndex = 10001
+    tag.Parent = container
+
+    local lblTitulo = Instance.new("TextLabel")
+    lblTitulo.Name = "Titulo"
+    lblTitulo.LayoutOrder = 2
+    lblTitulo.Size = UDim2.new(1, 0, 0, 38)
+    lblTitulo.BackgroundTransparency = 1
+    lblTitulo.Text = tostring(titulo or "📢 Aviso Admins")
+    lblTitulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+    lblTitulo.TextTransparency = 1
+    lblTitulo.TextSize = 26
+    lblTitulo.Font = Enum.Font.GothamBlack
+    lblTitulo.TextWrapped = true
+    lblTitulo.ZIndex = 10001
+    lblTitulo.Parent = container
+
+    local linha = Instance.new("Frame")
+    linha.Name = "Linha"
+    linha.LayoutOrder = 3
+    linha.Size = UDim2.new(0, 120, 0, 2)
+    linha.BackgroundColor3 = Color3.fromRGB(59, 130, 246)
+    linha.BackgroundTransparency = 1
+    linha.BorderSizePixel = 0
+    linha.ZIndex = 10001
+    linha.Parent = container
+
+    local linhaCorner = Instance.new("UICorner")
+    linhaCorner.CornerRadius = UDim.new(1, 0)
+    linhaCorner.Parent = linha
+
+    local lblMensagem = Instance.new("TextLabel")
+    lblMensagem.Name = "Mensagem"
+    lblMensagem.LayoutOrder = 4
+    lblMensagem.Size = UDim2.new(1, 0, 0, 125)
+    lblMensagem.BackgroundTransparency = 1
+    lblMensagem.Text = tostring(mensagem or "")
+    lblMensagem.TextColor3 = Color3.fromRGB(229, 231, 235)
+    lblMensagem.TextTransparency = 1
+    lblMensagem.TextSize = 18
+    lblMensagem.Font = Enum.Font.GothamMedium
+    lblMensagem.TextWrapped = true
+    lblMensagem.LineHeight = 1.25
+    lblMensagem.ZIndex = 10001
+    lblMensagem.Parent = container
+
+    local btnFechar = Instance.new("TextButton")
+    btnFechar.Name = "BotaoFechar"
+    btnFechar.LayoutOrder = 5
+    btnFechar.Size = UDim2.new(0, 150, 0, 38)
+    btnFechar.BackgroundColor3 = Color3.fromRGB(24, 29, 40)
+    btnFechar.BackgroundTransparency = 1
+    btnFechar.Text = "Fechar"
+    btnFechar.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnFechar.TextTransparency = 1
+    btnFechar.TextSize = 14
+    btnFechar.Font = Enum.Font.GothamBold
+    btnFechar.AutoButtonColor = true
+    btnFechar.ZIndex = 10002
+    btnFechar.Parent = container
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 10)
+    btnCorner.Parent = btnFechar
+
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Color = Color3.fromRGB(59, 130, 246)
+    btnStroke.Thickness = 1.2
+    btnStroke.Transparency = 1
+    btnStroke.Parent = btnFechar
+
+    local infoFadeIn = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    TweenService:Create(telaPreta, infoFadeIn, { BackgroundTransparency = 0.28 }):Play()
+    TweenService:Create(tag, infoFadeIn, { TextTransparency = 0 }):Play()
+    TweenService:Create(lblTitulo, infoFadeIn, { TextTransparency = 0 }):Play()
+    TweenService:Create(linha, infoFadeIn, { BackgroundTransparency = 0 }):Play()
+    TweenService:Create(lblMensagem, infoFadeIn, { TextTransparency = 0 }):Play()
+    TweenService:Create(btnFechar, infoFadeIn, { BackgroundTransparency = 0.15, TextTransparency = 0 }):Play()
+    TweenService:Create(btnStroke, infoFadeIn, { Transparency = 0 }):Play()
+
+    local fechando = false
+    local function fecharTela()
+        if fechando then return end
+        fechando = true
+
+        local infoFadeOut = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        TweenService:Create(telaPreta, infoFadeOut, { BackgroundTransparency = 1 }):Play()
+        TweenService:Create(tag, infoFadeOut, { TextTransparency = 1 }):Play()
+        TweenService:Create(lblTitulo, infoFadeOut, { TextTransparency = 1 }):Play()
+        TweenService:Create(linha, infoFadeOut, { BackgroundTransparency = 1 }):Play()
+        TweenService:Create(lblMensagem, infoFadeOut, { TextTransparency = 1 }):Play()
+        TweenService:Create(btnFechar, infoFadeOut, { BackgroundTransparency = 1, TextTransparency = 1 }):Play()
+        TweenService:Create(btnStroke, infoFadeOut, { Transparency = 1 }):Play()
+
+        task.delay(0.32, function()
+            if telaPreta and telaPreta.Parent then
+                telaPreta:Destroy()
+            end
+        end)
+    end
+
+    btnFechar.MouseButton1Click:Connect(fecharTela)
+    task.delay(tempoTotal, fecharTela)
+end
+
+local function processarAvisoGlobal(dados)
+    if type(dados) ~= "table" then return end
+    local msgId   = tostring(dados.id or "")
+    local texto   = tostring(dados.message or dados.texto or "")
+    local titulo  = tostring(dados.title or dados.titulo or "📢 Aviso Admins")
+    local duracao = tonumber(dados.duration) or 6
+
+    if texto == "" or msgId == "" or msgId == "0" then return end
+    if _G.RD4X_UltimoAvisoId == msgId then return end
+
+    if _G.RD4X_PrimeiroCheckGlobal == nil then
+        _G.RD4X_PrimeiroCheckGlobal = true
+        _G.RD4X_UltimoAvisoId = msgId
+        return
+    end
+
+    _G.RD4X_UltimoAvisoId = msgId
+    pcall(function()
+        mostrarTelaAvisoGlobal(titulo, texto, duracao)
+    end)
+end
+
+-- Loop em background para TODOS os usuários com o script aberto receberem a tela
+task.spawn(function()
+    while _G.RD4X_SessionId == sessaoAtual and ScreenGui.Parent do
+        local ok, body = fazerHttpGlobal({
+            Url = GLOBAL_MSG_ENDPOINT,
+            Method = "GET",
+            Headers = { ["Accept"] = "application/json" }
+        })
+
+        if ok and body and body ~= "" then
+            local okJson, parsed = pcall(function()
+                return HttpService:JSONDecode(body)
+            end)
+            if okJson and type(parsed) == "table" then
+                processarAvisoGlobal(parsed.data or parsed)
+            end
+        end
+
+        task.wait(6)
+    end
+end)
+
+-- ABA EXCLUSIVA QUE SÓ APARECE SE O USERID FOR O MEU_ID_CREATOR
+if LocalPlayer.UserId == MEU_ID_CREATOR then
+    Tabs.Creator = CreateTab("Creator", "10941503192")
+
+    UI.InfoBlock(Tabs.Creator, {
+        Title = "Painel do Criador",
+        Description = "Visível apenas para você (ID_CREATOR). Envia aviso global para todos.",
+        Icon = "10941503192"
+    })
+
+    local tituloGlobalInput = "📢 Aviso Admins"
+    local mensagemGlobalInput = ""
+    local duracaoGlobalInput = 6
+
+    UI.Input(Tabs.Creator, {
+        Name = "Título da Tela",
+        CurrentValue = tituloGlobalInput,
+        PlaceholderText = "Ex: 📢 Aviso Admins",
+        Callback = function(txt)
+            if txt and tostring(txt) ~= "" then
+                tituloGlobalInput = tostring(txt)
+            end
+        end
+    })
+
+    UI.Input(Tabs.Creator, {
+        Name = "Mensagem Global",
+        CurrentValue = "",
+        PlaceholderText = "Digite o aviso para todos no script...",
+        Callback = function(txt)
+            mensagemGlobalInput = tostring(txt or "")
+        end
+    })
+
+    UI.Input(Tabs.Creator, {
+        Name = "Duração (segundos)",
+        CurrentValue = "6",
+        PlaceholderText = "Ex: 6",
+        Callback = function(txt)
+            duracaoGlobalInput = tonumber(txt) or 6
+        end
+    })
+
+    UI.Button(Tabs.Creator, {
+        Name = "Enviar Mensagem Global",
+        Description = "Abre a tela global para todos com o hub aberto",
+        Callback = function()
+            local textoLimpo = mensagemGlobalInput:gsub("^%s+", ""):gsub("%s+$", "")
+            if textoLimpo == "" then
+                Notify("Creator", "Digite uma mensagem antes de enviar!", 2)
+                return
+            end
+
+            local payload = {
+                userId = LocalPlayer.UserId,
+                id = tostring(os.time()) .. "_" .. tostring(math.random(1000, 9999)),
+                title = tituloGlobalInput,
+                message = textoLimpo,
+                duration = duracaoGlobalInput
+            }
+
+            local ok, _, status = fazerHttpGlobal({
+                Url = GLOBAL_MSG_ENDPOINT,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = HttpService:JSONEncode(payload)
+            })
+
+            if ok and (not status or (status >= 200 and status < 300)) then
+                _G.RD4X_PrimeiroCheckGlobal = true
+                _G.RD4X_UltimoAvisoId = payload.id
+                mostrarTelaAvisoGlobal(payload.title, payload.message, payload.duration)
+                Notify("Creator", "Aviso global publicado com sucesso!", 2)
+            else
+                Notify("Creator", "Falha ao enviar para a API (" .. tostring(status or "sem resposta") .. ").", 3)
+            end
+        end
+    })
+end
+
+
+
 UI.Paragraph(Tabs.SomAll, {
 Title = "Aviso do RD4X!", Content = "Em Breve, na atualização 2.0.0!",
 Icon = "137483969436938"
@@ -1909,4 +2232,3 @@ task.spawn(function()
         end
     end
 end)
-
