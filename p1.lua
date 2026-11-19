@@ -1852,18 +1852,16 @@ BotaoReconectar.MouseButton1Click:Connect(function()
     TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 end)
 
--- Auto bio, auto nome personalizado + loop RGB (Nome e Bio)
+-- Auto bio, auto nome personalizado (RGB controlado na Parte 2)
 task.spawn(function()
     task.wait(2)
     local RE = ReplicatedStorage:FindFirstChild("RE")
     local rpText = RE and RE:FindFirstChild("1RPNam1eTex1t")
-    local rpColor = RE and RE:FindFirstChild("1RPNam1eColo1r")
 
-    if not rpText and not rpColor then
+    if not rpText then
         task.wait(2)
         RE = ReplicatedStorage:FindFirstChild("RE")
         rpText = RE and RE:FindFirstChild("1RPNam1eTex1t")
-        rpColor = RE and RE:FindFirstChild("1RPNam1eColo1r")
     end
 
     if rpText then
@@ -1875,36 +1873,6 @@ task.spawn(function()
         else
             pcall(function() rpText:FireServer("RolePlayName", "🇧🇷 Rd4X User◾") end)
         end
-        task.wait(0.3)
-    end
-
-    local ciclo = 0
-    while LocalPlayer.Parent do
-        local cfg = _G.RD4X_RGB
-        if cfg and cfg.Ativo then
-            local passo, delay = obterParametrosVelocidade(cfg.Velocidade)
-            ciclo = (ciclo + passo) % 1
-            local corAtual = calcularCorRGB(ciclo)
-
-            local usarNome = (cfg.Alvo == "Nome e Bio" or cfg.Alvo == "Apenas Nome")
-            local usarBio = (cfg.Alvo == "Nome e Bio" or cfg.Alvo == "Apenas Bio")
-
-            if rpColor and rpColor.Parent then
-                if usarNome then
-                    pcall(function()
-                        rpColor:FireServer("PickingRPNameColor", corAtual)
-                    end)
-                end
-                if usarBio then
-                    pcall(function()
-                        rpColor:FireServer("PickingRPBioColor", corAtual)
-                    end)
-                end
-            end
-
-            task.wait(delay)
-        else
-            task.wait(0.3)
-        end
     end
 end)
+
