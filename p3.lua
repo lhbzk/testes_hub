@@ -590,13 +590,14 @@ UI.Button(Tabs.Troll, {
 -- PAINEL DE PROPS (BANCADA / PRIVADA + KILL / BRING + ALL / PLAYER)
 --------------------------------------------------------------------------------
 UI.InfoBlock(Tabs.Troll, {
-    Title = "🚽🪑 Props Avançados (All / Player)",
-    Description = "Escolha o prop, a função (Kill/Bring) e o modo (all ou player).",
+    Title = "🚽🪑 Props Avançados (1 Player / 20 All)",
+    Description = "1 prop no modo player e até 20 props no modo all.",
     Icon = "14436167217"
 })
 
+local MAX_PROPS_ALL = 20
 local CONFIG_PROPS_AVANCADO = {
-    Bancada = { nome = "FurnitureBleachers", categoria = "Furniture" }, --[span_2](start_span)[span_2](end_span)
+    Bancada = { nome = "FurnitureBleachers", categoria = "Furniture" }, --[span_1](start_span)[span_1](end_span)
     Privada = { nome = "Toilet", categoria = "Furniture" }
 }
 
@@ -617,14 +618,18 @@ local function selecionarEquipamentoProp(chave)
     task.wait(0.3)
 end
 
+local function obterModoEfetivo()
+    if funcaoPropSelecionada == "Kill All" or funcaoPropSelecionada == "Bring All" then
+        return "all"
+    elseif funcaoPropSelecionada == "Kill (Player)" or funcaoPropSelecionada == "Bring (Player)" then
+        return "player"
+    end
+    return modoAlvoProp
+end
+
 local function obterListaAlvosAvancado()
     local lista = {}
-    local modoEfetivo = modoAlvoProp
-    if funcaoPropSelecionada == "Kill All" or funcaoPropSelecionada == "Bring All" then
-        modoEfetivo = "all"
-    elseif funcaoPropSelecionada == "Kill (Player)" or funcaoPropSelecionada == "Bring (Player)" then
-        modoEfetivo = "player"
-    end
+    local modoEfetivo = obterModoEfetivo()
 
     if modoEfetivo == "all" then
         for _, p in ipairs(Players:GetPlayers()) do
@@ -637,7 +642,7 @@ local function obterListaAlvosAvancado()
             end
         end
     else
-        local alvo = alvoPropSelecionado and Players:FindFirstChild(alvoPropSelecionado) --[span_3](start_span)[span_3](end_span)
+        local alvo = alvoPropSelecionado and Players:FindFirstChild(alvoPropSelecionado) --[span_2](start_span)[span_2](end_span)
         if alvo and alvo ~= LocalPlayer and alvo.Character then
             local hum = alvo.Character:FindFirstChildOfClass("Humanoid")
             local hrp = alvo.Character:FindFirstChild("HumanoidRootPart")
@@ -650,62 +655,133 @@ local function obterListaAlvosAvancado()
     return lista
 end
 
-local function criarPropParaJogador(alvo)
-    if not alvo or not alvo.Character then return nil end
-    local hrp = alvo.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return nil end
+local function criarPropEmPosicao(posicao, limiteMaximo)
+    local antes = #encontrarMeusProps() --[span_3](start_span)[span_3](end_span)
+    if antes >= limiteMaximo then
+        return nil
+    end
 
-    local antes = #encontrarMeusProps() --[span_4](start_span)[span_4](end_span)
-    spawnarProp(hrp.Position) --[span_5](start_span)[span_5](end_span)
-    task.wait(0.45)
+    spawnarProp(posicao) --[span_4](start_span)[span_4](end_span)
+    task.wait(0.25)
 
-    local agora = encontrarMeusProps() --[span_6](start_span)[span_6](end_span)
-    local prop = agora[#agora]
-    if not prop then
-        local t0 = tick()
-        while tick() - t0 < 4 and propAvancadoAtivo do
-            task.wait(0.25)
-            agora = encontrarMeusProps() --[span_7](start_span)[span_7](end_span)
-            if #agora > antes then
-                prop = agora[#agora]
-                break
+    local agora = encontrarMeusProps() --[span_5](start_span)[span_5](end_span)
+    if #agora > antes then
+        return agora[#agora]
+    end
+
+    local t0 = tick()
+    while tick() - t0 < 2.5 and propAvancadoAtivo do
+        task.wait(0.15)
+        agora = encontrarMeusProps() --[span_6](start_span)[span_6](end_span)
+        if #agora > antes then
+            return agora[#agora]
+        end
+    end
+
+    return nil
+end
+
+local function gerarLoteProps(alvos, modoEfetivo)
+    local propsCriados = {}
+    if #alvos == 0 then return propsCriados end
+
+    -- No modo 'player', cria apenas 1 prop no alvo
+    if modoEfetivo == "player" then
+        local alvo = alvos[1]
+        local hrp = alvo and alvo.Character and alvo.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local prop = criarPropEmPosicao(hrp.Position, #encontrarMeusProps() + 1) --[span_7](start_span)[span_7](end_span)
+            if prop then
+                table.insert(propsCriados, { prop = prop, alvo = alvo })
+            end
+        end
+        return propsCriados
+    end
+
+    -- No modo 'all', cria no máximo 20 props no total
+    local totalAtual = #encontrarMeusProps() --[span_8](start_span)[span_8](end_span)
+    local espacoLivre = math.max(0, MAX_PROPS_ALL - totalAtual)
+    if espacoLivre <= 0 then
+        return propsCriados
+    end
+
+    local porAlvo = math.max(1, math.floor(espacoLivre / #alvos))
+    local criadosNestaChamada = 0
+
+    for _, alvo in ipairs(alvos) do
+        if not propAvancadoAtivo or criadosNestaChamada >= espacoLivre then break end
+
+        for i = 1, porAlvo do
+            if not propAvancadoAtivo or criadosNestaChamada >= espacoLivre then break end
+            if not alvo or not alvo.Character then break end
+            local hrp = alvo.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then break end
+
+            local offset = Vector3.new(
+                math.random(-3, 3),
+                0,
+                math.random(-3, 3)
+            )
+            local prop = criarPropEmPosicao(hrp.Position + offset, MAX_PROPS_ALL)
+            if prop then
+                criadosNestaChamada = criadosNestaChamada + 1
+                table.insert(propsCriados, { prop = prop, alvo = alvo })
             end
         end
     end
-    return prop
+
+    return propsCriados
 end
 
-local function aplicarAcaoEmAlvo(alvo, prop, acao)
-    if not alvo or not alvo.Character or not prop or not prop.Parent then return end
-    local hum = alvo.Character:FindFirstChildOfClass("Humanoid")
-    local hrp = alvo.Character:FindFirstChild("HumanoidRootPart")
-    if not hum or not hrp or hum.Health <= 0 then return end
+local function acompanharEExecutarProps(paresPropAlvo, acao)
+    if #paresPropAlvo == 0 then return end
 
     local tInicio = tick()
-    while propAvancadoAtivo and prop.Parent and alvo.Parent and hum.Health > 0 and (tick() - tInicio < TEMPO_MAX_SIT) do --[span_8](start_span)[span_8](end_span)
-        local charAtual = alvo.Character
-        local hrpAtual = charAtual and charAtual:FindFirstChild("HumanoidRootPart")
-        local humAtual = charAtual and charAtual:FindFirstChildOfClass("Humanoid")
-        if not hrpAtual or not humAtual or humAtual.Health <= 0 then break end
+    local concluidos = {}
 
-        local t = tick() * PROP_MOVE_SPEED --[span_9](start_span)[span_9](end_span)
-        local offsetY = math.sin(t) * PROP_MOVE_RANGE --[span_10](start_span)[span_10](end_span)
-        moverProp(prop, CFrame.new(hrpAtual.Position + Vector3.new(0, offsetY, 0))) --[span_11](start_span)[span_11](end_span)
+    while propAvancadoAtivo and (tick() - tInicio < TEMPO_MAX_SIT) do --[span_9](start_span)[span_9](end_span)
+        local todosConcluidos = true
 
-        if humAtual.Sit then
-            task.wait(0.1)
-            if acao == "KILL" then
-                moverProp(prop, CFrame.new(hrpAtual.Position.X, PROP_KILL_Y, hrpAtual.Position.Z)) --[span_12](start_span)[span_12](end_span)
-            elseif acao == "BRING" then
-                local meuHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if meuHrp then
-                    moverProp(prop, meuHrp.CFrame * CFrame.new(2, 0, 0))
+        for idx, item in ipairs(paresPropAlvo) do
+            if not concluidos[idx] then
+                local alvo = item.alvo
+                local prop = item.prop
+
+                if not alvo or not alvo.Parent or not prop or not prop.Parent then
+                    concluidos[idx] = true
+                else
+                    local charAtual = alvo.Character
+                    local hrpAtual = charAtual and charAtual:FindFirstChild("HumanoidRootPart")
+                    local humAtual = charAtual and charAtual:FindFirstChildOfClass("Humanoid")
+
+                    if not hrpAtual or not humAtual or humAtual.Health <= 0 then
+                        concluidos[idx] = true
+                    else
+                        todosConcluidos = false
+                        local t = tick() * PROP_MOVE_SPEED + idx --[span_10](start_span)[span_10](end_span)
+                        local offsetY = math.sin(t) * PROP_MOVE_RANGE --[span_11](start_span)[span_11](end_span)
+                        local offsetX = #paresPropAlvo > 1 and (math.cos(t) * 1.5) or 0
+                        local offsetZ = #paresPropAlvo > 1 and (math.sin(t) * 1.5) or 0
+                        moverProp(prop, CFrame.new(hrpAtual.Position + Vector3.new(offsetX, offsetY, offsetZ))) --[span_12](start_span)[span_12](end_span)
+
+                        if humAtual.Sit then
+                            concluidos[idx] = true
+                            task.wait(0.08)
+                            if acao == "KILL" then
+                                moverProp(prop, CFrame.new(hrpAtual.Position.X, PROP_KILL_Y, hrpAtual.Position.Z)) --[span_13](start_span)[span_13](end_span)
+                            elseif acao == "BRING" then
+                                local meuHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                                if meuHrp then
+                                    moverProp(prop, meuHrp.CFrame * CFrame.new(2, 0, 0))
+                                end
+                            end
+                        end
+                    end
                 end
             end
-            task.wait(0.5)
-            break
         end
 
+        if todosConcluidos then break end
         task.wait(0.05)
     end
 end
@@ -754,31 +830,31 @@ UI.Dropdown(Tabs.Troll, {
 -- Interruptor para executar a configuração escolhida
 UI.Toggle(Tabs.Troll, {
     Name = "Executar Prop Selecionado",
-    Description = "Liga/desliga conforme Equipamento, Função e Alvo (all/player)",
+    Description = "1 prop no player selecionado; até 20 props no modo all",
     CurrentValue = false,
     Callback = function(ativo)
         propAvancadoAtivo = ativo
         if not ativo then
-            deletarTodosProps() --[span_13](start_span)[span_13](end_span)
+            deletarTodosProps() --[span_14](start_span)[span_14](end_span)
             Notify("Props", "Execução desligada.", 2)
             return
         end
 
-        if not pegarPropMaker() then --[span_14](start_span)[span_14](end_span)
+        if not pegarPropMaker() then --[span_15](start_span)[span_15](end_span)
             propAvancadoAtivo = false
             Notify("Props", "Falha ao equipar 'caixa de props'.", 2)
             return
         end
 
         selecionarEquipamentoProp(equipamentoSelecionado)
-
         local acao = funcaoPropSelecionada:find("Kill") and "KILL" or "BRING"
+        local modoEfetivo = obterModoEfetivo()
 
         task.spawn(function()
             while propAvancadoAtivo do
                 local alvos = obterListaAlvosAvancado()
                 if #alvos == 0 then
-                    if modoAlvoProp == "player" then
+                    if modoEfetivo == "player" then
                         Notify("Props", "Selecione um alvo válido na lista de players!", 3)
                         propAvancadoAtivo = false
                         break
@@ -787,24 +863,20 @@ UI.Toggle(Tabs.Troll, {
                     continue
                 end
 
-                for _, alvo in ipairs(alvos) do
-                    if not propAvancadoAtivo then break end
-                    local prop = criarPropParaJogador(alvo)
-                    if prop then
-                        aplicarAcaoEmAlvo(alvo, prop, acao)
-                    end
-                    task.wait(0.15)
+                local lote = gerarLoteProps(alvos, modoEfetivo)
+                if #lote > 0 then
+                    acompanharEExecutarProps(lote, acao)
                 end
 
-                deletarTodosProps() --[span_15](start_span)[span_15](end_span)
-                if modoAlvoProp == "player" and not funcaoPropSelecionada:find("All") then
+                deletarTodosProps() --[span_16](start_span)[span_16](end_span)
+                if modoEfetivo == "player" then
                     propAvancadoAtivo = false
                     break
                 end
                 task.wait(0.5)
             end
 
-            deletarTodosProps() --[span_16](start_span)[span_16](end_span)
+            deletarTodosProps() --[span_17](start_span)[span_17](end_span)
         end)
     end
 })
