@@ -585,6 +585,230 @@ UI.Button(Tabs.Troll, {
     Description = "Apaga todos os props do mapa",
     Callback = function() deletarTodosProps(); Notify("Props", "Props deletados", 2) end,
 })
+
+--------------------------------------------------------------------------------
+-- PAINEL DE PROPS (BANCADA / PRIVADA + KILL / BRING + ALL / PLAYER)
+--------------------------------------------------------------------------------
+UI.InfoBlock(Tabs.Troll, {
+    Title = "🚽🪑 Props Avançados (All / Player)",
+    Description = "Escolha o prop, a função (Kill/Bring) e o modo (all ou player).",
+    Icon = "14436167217"
+})
+
+local CONFIG_PROPS_AVANCADO = {
+    Bancada = { nome = "FurnitureBleachers", categoria = "Furniture" }, --[span_2](start_span)[span_2](end_span)
+    Privada = { nome = "Toilet", categoria = "Furniture" }
+}
+
+local equipamentoSelecionado = "Privada"
+local funcaoPropSelecionada    = "Bring All"
+local modoAlvoProp           = "all" -- "all" ou "player"
+local propAvancadoAtivo      = false
+
+local function selecionarEquipamentoProp(chave)
+    local info = CONFIG_PROPS_AVANCADO[chave] or CONFIG_PROPS_AVANCADO.Bancada
+    local RE = ReplicatedStorage:FindFirstChild("RE")
+    local clearRemote = RE and RE:FindFirstChild("1Clea1rTool1s")
+    if not clearRemote then return end
+    task.wait(0.2)
+    pcall(function() clearRemote:FireServer("OpenPropMenu") end)
+    task.wait(0.3)
+    pcall(function() clearRemote:FireServer("RequestingPropName", info.nome, info.categoria) end)
+    task.wait(0.3)
+end
+
+local function obterListaAlvosAvancado()
+    local lista = {}
+    local modoEfetivo = modoAlvoProp
+    if funcaoPropSelecionada == "Kill All" or funcaoPropSelecionada == "Bring All" then
+        modoEfetivo = "all"
+    elseif funcaoPropSelecionada == "Kill (Player)" or funcaoPropSelecionada == "Bring (Player)" then
+        modoEfetivo = "player"
+    end
+
+    if modoEfetivo == "all" then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local hum = p.Character:FindFirstChildOfClass("Humanoid")
+                local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+                if hum and hrp and hum.Health > 0 then
+                    table.insert(lista, p)
+                end
+            end
+        end
+    else
+        local alvo = alvoPropSelecionado and Players:FindFirstChild(alvoPropSelecionado) --[span_3](start_span)[span_3](end_span)
+        if alvo and alvo ~= LocalPlayer and alvo.Character then
+            local hum = alvo.Character:FindFirstChildOfClass("Humanoid")
+            local hrp = alvo.Character:FindFirstChild("HumanoidRootPart")
+            if hum and hrp and hum.Health > 0 then
+                table.insert(lista, alvo)
+            end
+        end
+    end
+
+    return lista
+end
+
+local function criarPropParaJogador(alvo)
+    if not alvo or not alvo.Character then return nil end
+    local hrp = alvo.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+
+    local antes = #encontrarMeusProps() --[span_4](start_span)[span_4](end_span)
+    spawnarProp(hrp.Position) --[span_5](start_span)[span_5](end_span)
+    task.wait(0.45)
+
+    local agora = encontrarMeusProps() --[span_6](start_span)[span_6](end_span)
+    local prop = agora[#agora]
+    if not prop then
+        local t0 = tick()
+        while tick() - t0 < 4 and propAvancadoAtivo do
+            task.wait(0.25)
+            agora = encontrarMeusProps() --[span_7](start_span)[span_7](end_span)
+            if #agora > antes then
+                prop = agora[#agora]
+                break
+            end
+        end
+    end
+    return prop
+end
+
+local function aplicarAcaoEmAlvo(alvo, prop, acao)
+    if not alvo or not alvo.Character or not prop or not prop.Parent then return end
+    local hum = alvo.Character:FindFirstChildOfClass("Humanoid")
+    local hrp = alvo.Character:FindFirstChild("HumanoidRootPart")
+    if not hum or not hrp or hum.Health <= 0 then return end
+
+    local tInicio = tick()
+    while propAvancadoAtivo and prop.Parent and alvo.Parent and hum.Health > 0 and (tick() - tInicio < TEMPO_MAX_SIT) do --[span_8](start_span)[span_8](end_span)
+        local charAtual = alvo.Character
+        local hrpAtual = charAtual and charAtual:FindFirstChild("HumanoidRootPart")
+        local humAtual = charAtual and charAtual:FindFirstChildOfClass("Humanoid")
+        if not hrpAtual or not humAtual or humAtual.Health <= 0 then break end
+
+        local t = tick() * PROP_MOVE_SPEED --[span_9](start_span)[span_9](end_span)
+        local offsetY = math.sin(t) * PROP_MOVE_RANGE --[span_10](start_span)[span_10](end_span)
+        moverProp(prop, CFrame.new(hrpAtual.Position + Vector3.new(0, offsetY, 0))) --[span_11](start_span)[span_11](end_span)
+
+        if humAtual.Sit then
+            task.wait(0.1)
+            if acao == "KILL" then
+                moverProp(prop, CFrame.new(hrpAtual.Position.X, PROP_KILL_Y, hrpAtual.Position.Z)) --[span_12](start_span)[span_12](end_span)
+            elseif acao == "BRING" then
+                local meuHrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if meuHrp then
+                    moverProp(prop, meuHrp.CFrame * CFrame.new(2, 0, 0))
+                end
+            end
+            task.wait(0.5)
+            break
+        end
+
+        task.wait(0.05)
+    end
+end
+
+-- 1. Lista de equipamentos disponíveis
+UI.Dropdown(Tabs.Troll, {
+    Name = "Equipamento (Prop)",
+    Options = { "Privada", "Bancada" },
+    CurrentOption = { "Privada" },
+    Callback = function(opt)
+        if opt and opt[1] then
+            equipamentoSelecionado = opt[1]
+        end
+    end
+})
+
+-- 2. Lista de funções
+UI.Dropdown(Tabs.Troll, {
+    Name = "Função do Prop",
+    Options = { "Kill All", "Kill (Player)", "Bring All", "Bring (Player)" },
+    CurrentOption = { "Bring All" },
+    Callback = function(opt)
+        if opt and opt[1] then
+            funcaoPropSelecionada = opt[1]
+            if opt[1]:find("All") then
+                modoAlvoProp = "all"
+            else
+                modoAlvoProp = "player"
+            end
+        end
+    end
+})
+
+-- 3. Lista de seleção de escopo (all ou player)
+UI.Dropdown(Tabs.Troll, {
+    Name = "Alvo (all / player)",
+    Options = { "all", "player" },
+    CurrentOption = { "all" },
+    Callback = function(opt)
+        if opt and opt[1] then
+            modoAlvoProp = opt[1]
+        end
+    end
+})
+
+-- Interruptor para executar a configuração escolhida
+UI.Toggle(Tabs.Troll, {
+    Name = "Executar Prop Selecionado",
+    Description = "Liga/desliga conforme Equipamento, Função e Alvo (all/player)",
+    CurrentValue = false,
+    Callback = function(ativo)
+        propAvancadoAtivo = ativo
+        if not ativo then
+            deletarTodosProps() --[span_13](start_span)[span_13](end_span)
+            Notify("Props", "Execução desligada.", 2)
+            return
+        end
+
+        if not pegarPropMaker() then --[span_14](start_span)[span_14](end_span)
+            propAvancadoAtivo = false
+            Notify("Props", "Falha ao equipar 'caixa de props'.", 2)
+            return
+        end
+
+        selecionarEquipamentoProp(equipamentoSelecionado)
+
+        local acao = funcaoPropSelecionada:find("Kill") and "KILL" or "BRING"
+
+        task.spawn(function()
+            while propAvancadoAtivo do
+                local alvos = obterListaAlvosAvancado()
+                if #alvos == 0 then
+                    if modoAlvoProp == "player" then
+                        Notify("Props", "Selecione um alvo válido na lista de players!", 3)
+                        propAvancadoAtivo = false
+                        break
+                    end
+                    task.wait(0.8)
+                    continue
+                end
+
+                for _, alvo in ipairs(alvos) do
+                    if not propAvancadoAtivo then break end
+                    local prop = criarPropParaJogador(alvo)
+                    if prop then
+                        aplicarAcaoEmAlvo(alvo, prop, acao)
+                    end
+                    task.wait(0.15)
+                end
+
+                deletarTodosProps() --[span_15](start_span)[span_15](end_span)
+                if modoAlvoProp == "player" and not funcaoPropSelecionada:find("All") then
+                    propAvancadoAtivo = false
+                    break
+                end
+                task.wait(0.5)
+            end
+
+            deletarTodosProps() --[span_16](start_span)[span_16](end_span)
+        end)
+    end
+})
+
 --------------------------------------------------------------------------------
 -- TROLL AÉREO (CHINOOK MILITARY)
 --------------------------------------------------------------------------------
