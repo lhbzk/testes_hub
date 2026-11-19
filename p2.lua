@@ -946,8 +946,12 @@ UI.Toggle(rgbTab, {
     CurrentValue = true,
     Callback = function(v)
         _G.RD4X_RGB.Ativo = v
+        if v then
+            iniciarLoopRGB()
+        end
     end
 })
+
 
 UI.Slider(rgbTab, {
     Name = "Velocidade do RGB",
@@ -1003,3 +1007,49 @@ UI.Dropdown(rgbTab, {
         end
     end
 })
+-- =========================
+-- LOOP DO RGB (CONTROLADO)
+-- =========================
+local rgbTaskRodando = false
+
+local function iniciarLoopRGB()
+    if rgbTaskRodando then return end
+    rgbTaskRodando = true
+
+    task.spawn(function()
+        local ciclo = 0
+        while _G.RD4X_RGB and _G.RD4X_RGB.Ativo do
+            local cfg = _G.RD4X_RGB
+            local RE = ReplicatedStorage:FindFirstChild("RE")
+            local rpColor = RE and RE:FindFirstChild("1RPNam1eColo1r")
+
+            local passo, delay = obterParametrosVelocidade(cfg.Velocidade)
+            ciclo = (ciclo + passo) % 1
+            local corAtual = calcularCorRGB(ciclo)
+
+            local usarNome = (cfg.Alvo == "Nome e Bio" or cfg.Alvo == "Apenas Nome")
+            local usarBio = (cfg.Alvo == "Nome e Bio" or cfg.Alvo == "Apenas Bio")
+
+            if rpColor and rpColor.Parent then
+                if usarNome then
+                    pcall(function()
+                        rpColor:FireServer("PickingRPNameColor", corAtual)
+                    end)
+                end
+                if usarBio then
+                    pcall(function()
+                        rpColor:FireServer("PickingRPBioColor", corAtual)
+                    end)
+                end
+            end
+
+            task.wait(delay)
+        end
+        rgbTaskRodando = false
+    end)
+end
+
+if _G.RD4X_RGB.Ativo then
+    iniciarLoopRGB()
+end
+
