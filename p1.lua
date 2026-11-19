@@ -1882,24 +1882,27 @@ task.spawn(function()
     while LocalPlayer.Parent do
         local cfg = _G.RD4X_RGB
         if cfg and cfg.Ativo then
-            local vel = VELOCIDADES_RGB[cfg.Velocidade] or VELOCIDADES_RGB["Rápido"]
-            ciclo = (ciclo + vel.passo) % 1
+            local passo, delay = obterParametrosVelocidade(cfg.Velocidade)
+            ciclo = (ciclo + passo) % 1
             local corAtual = calcularCorRGB(ciclo)
 
+            local usarNome = (cfg.Alvo == "Nome e Bio" or cfg.Alvo == "Apenas Nome")
+            local usarBio = (cfg.Alvo == "Nome e Bio" or cfg.Alvo == "Apenas Bio")
+
             if rpColor and rpColor.Parent then
-                if cfg.NomeAtivo then
+                if usarNome then
                     pcall(function()
                         rpColor:FireServer("PickingRPNameColor", corAtual)
                     end)
                 end
-                if cfg.BioAtiva then
+                if usarBio then
                     pcall(function()
                         rpColor:FireServer("PickingRPBioColor", corAtual)
                     end)
                 end
             end
 
-            task.wait(vel.delay)
+            task.wait(delay)
         else
             task.wait(0.3)
         end
