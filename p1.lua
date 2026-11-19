@@ -288,20 +288,39 @@ _G.RD4X_TRANSP_CARDS = TRANSP_CARDS
 _G.RD4X_TRANSP_INPUT = TRANSP_INPUT
 _G.RD4X_TRANSP_BOTAO_VERDE = TRANSP_BOTAO_VERDE
 
--- cleanUp
+-- cleanUp (procura em gethui(), CoreGui e PlayerGui)
+local nomesAntigos = {
+    "Rd4XHubOficial",
+    "RD4X_Loading",
+    "RD4X_LoadingPreview",
+    "RD4X_Incompatible"
+}
 
-local oldGui = CoreGui:FindFirstChild("Rd4XHubOficial")
-if oldGui then oldGui:Destroy() end
-if CoreGui:FindFirstChild("RD4X_Loading") then
-    CoreGui.RD4X_Loading:Destroy()
+local locaisBusca = { CoreGui }
+
+if type(gethui) == "function" then
+    local ok, hui = pcall(gethui)
+    if ok and hui then
+        table.insert(locaisBusca, hui)
+    end
 end
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Rd4XHubOficial"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 999
+local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+if playerGui then
+    table.insert(locaisBusca, playerGui)
+end
 
-DefinirParentGui(ScreenGui)
+for _, localAlvo in ipairs(locaisBusca) do
+    for _, nomeGui in ipairs(nomesAntigos) do
+        local guiAntiga = localAlvo:FindFirstChild(nomeGui)
+        if guiAntiga then
+            pcall(function()
+                guiAntiga:Destroy()
+            end)
+        end
+    end
+end
+
 
 _G.RD4X_ScreenGui = ScreenGui
 
