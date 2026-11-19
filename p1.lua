@@ -232,7 +232,7 @@ end
 
 
 local MEU_ID_CREATOR = 4200878493
-local API_URL = "https://aidhmfv7af.apps.bot-hosting.cloud"
+local API_URL = "https://utfmsursyd.apps.bot-hosting.cloud"
 
 local function VerificarWhitelist()
     if LocalPlayer.UserId == MEU_ID_CREATOR then return true end
