@@ -586,13 +586,12 @@ UI.Button(Tabs.Troll, {
     Callback = function() deletarTodosProps(); Notify("Props", "Props deletados", 2) end,
 })
 
-
 --------------------------------------------------------------------------------
--- TROLL AÉREO (CHINOOK VIP)
+-- TROLL AÉREO (CHINOOK MILITARY)
 --------------------------------------------------------------------------------
 UI.InfoBlock(Tabs.Troll, {
-    Title = "Funções | Gamepass VIP/PREMIUM",
-    Description = "Apenas quem tem Gamepass VIP consegue usar.",
+    Title = "🚁 Veículos VIP | Prisão Aérea",
+    Description = "Apenas quem tem Gamepass VIP consegue usar. Prende o alvo no alto.",
     Icon = "5197571759"
 })
 
@@ -625,18 +624,35 @@ local function iniciarPrisaoAerea(playerAlvo)
             return
         end
 
-        local spawner = Workspace:FindFirstChild("AirVehicleSpawner")
-        if spawner and spawner:IsA("BasePart") then
-            hrpLocal.CFrame = spawner.CFrame + Vector3.new(0, 5, 0)
-        elseif spawner and spawner:IsA("Model") and spawner.PrimaryPart then
-            hrpLocal.CFrame = spawner.PrimaryPart.CFrame + Vector3.new(0, 5, 0)
-        end
+        -- 1. Teleporta para X: -311 | Y: 62 | Z: 74
+        hrpLocal.CFrame = CFrame.new(-311, 62, 74)
         task.wait(0.4)
 
+        -- 2. Dispara TelemetryClientInteraction
+        pcall(function()
+            local remotesFolder = ReplicatedStorage:FindFirstChild("Remotes")
+            local telemetryRemote = remotesFolder and remotesFolder:FindFirstChild("TelemetryClientInteraction")
+            if telemetryRemote then
+                telemetryRemote:FireServer("adRequest", {
+                    adType = "Rewarded Video",
+                    retryAttempt = 1,
+                    category = "Load in",
+                    trigger = "Recheck",
+                    isAvailable = false,
+                    placementId = "811291360932674",
+                    response = "InternalError"
+                })
+            end
+        end)
+
+        task.wait(0.3)
+
+        -- 3. Invoca o ChinookMilitary
         local ok = pcall(function()
-            local remote = spawner and spawner:FindFirstChild("SpawnVehicle")
-            if remote then
-                remote:InvokeServer("ChinookAgency")
+            local spawner = Workspace:FindFirstChild("AirVehicleSpawner")
+            local spawnRemote = spawner and spawner:FindFirstChild("SpawnVehicle")
+            if spawnRemote then
+                spawnRemote:InvokeServer("ChinookMilitary")
             end
         end)
 
@@ -649,6 +665,7 @@ local function iniciarPrisaoAerea(playerAlvo)
             return
         end
 
+        -- 4. Senta no piloto para ter controle de física do helicóptero
         local assentoPiloto = heli:FindFirstChildWhichIsA("VehicleSeat", true)
         local assentosPassageiros = {}
         for _, d in ipairs(heli:GetDescendants()) do
@@ -668,6 +685,7 @@ local function iniciarPrisaoAerea(playerAlvo)
         local alturaPrisao = 180
         local pontoBaseCFrame = nil
 
+        -- 5. Loop de captura e prisão na altura segura
         while prisaoHelicopteroAtiva and heli and heli.Parent and alvoPrisao and alvoPrisao.Parent do
             local charAlvo = alvoPrisao.Character
             local hrpAlvo = charAlvo and charAlvo:FindFirstChild("HumanoidRootPart")
@@ -722,8 +740,8 @@ local function iniciarPrisaoAerea(playerAlvo)
 end
 
 UI.Toggle(Tabs.Troll, {
-    Name = "Jail Helicóptero VIP ",
-    Description = "Apenas quem tem Gamepass VIP consegue usar.",
+    Name = "🚁 Prisão Aérea (Chinook Military)",
+    Description = "Apenas quem tem Gamepass VIP consegue usar. Liga/desliga no alvo.",
     CurrentValue = false,
     Callback = function(ativo)
         if ativo then
