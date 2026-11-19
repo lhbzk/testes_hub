@@ -881,3 +881,125 @@ UI.Paragraph(Tabs.Casas, {
     Icon = "18923169586",
     Height = 55
 })
+
+-- =========================
+-- CONTROLES DA ABA RGB
+-- =========================
+_G.RD4X_RGB = _G.RD4X_RGB or {
+    Ativo = true,
+    Alvo = "Nome e Bio",          -- "Nome e Bio", "Apenas Nome", "Apenas Bio"
+    Modo = "RGB Completo",        -- "RGB Completo", "Gradiente", "Cor Única"
+    FamiliaCor = "Azul",          -- "Azul", "Vermelho", "Verde", "Roxo", "Rosa", "Amarelo"
+    Intensidade = "Vibrante",     -- "Suave", "Equilibrada", "Vibrante"
+    Velocidade = 65               -- 1 até 100
+}
+
+local INTENSIDADES_RGB = {
+    ["Suave"] = { sat = 0.45, val = 1.0 },
+    ["Equilibrada"] = { sat = 0.75, val = 1.0 },
+    ["Vibrante"] = { sat = 1.0, val = 1.0 }
+}
+
+local FAIXAS_GRADIENTE = {
+    ["Azul"] = { min = 0.52, max = 0.68 },
+    ["Vermelho"] = { min = 0.0, max = 0.05 },
+    ["Verde"] = { min = 0.25, max = 0.42 },
+    ["Roxo"] = { min = 0.72, max = 0.82 },
+    ["Rosa"] = { min = 0.84, max = 0.95 },
+    ["Amarelo"] = { min = 0.11, max = 0.18 }
+}
+
+local function obterParametrosVelocidade(velNum)
+    local v = math.clamp(tonumber(velNum) or 50, 1, 100) / 100
+    local delay = 0.65 - (v * 0.59)
+    local passo = 0.015 + (v * 0.135)
+    return passo, delay
+end
+
+local function calcularCorRGB(ciclo)
+    local cfg = _G.RD4X_RGB
+    local inten = INTENSIDADES_RGB[cfg.Intensidade] or INTENSIDADES_RGB["Vibrante"]
+
+    if cfg.Modo == "Cor Única" then
+        local faixa = FAIXAS_GRADIENTE[cfg.FamiliaCor] or FAIXAS_GRADIENTE["Azul"]
+        local meio = (faixa.min + faixa.max) * 0.5
+        return Color3.fromHSV(meio, inten.sat, inten.val)
+    elseif cfg.Modo == "Gradiente" then
+        local faixa = FAIXAS_GRADIENTE[cfg.FamiliaCor] or FAIXAS_GRADIENTE["Azul"]
+        local onda = (math.sin(ciclo * math.pi * 2) + 1) * 0.5
+        local hue = faixa.min + (faixa.max - faixa.min) * onda
+        return Color3.fromHSV(hue % 1, inten.sat, inten.val)
+    else
+        return Color3.fromHSV(ciclo % 1, inten.sat, inten.val)
+    end
+end
+
+local rgbTab = Tabs.Rgb
+UI.InfoBlock(Tabs.Rgb, {
+Title = "RGB | Speed RGB",
+Description = "Ative, desative e ajuste aqui suas opções de RGB.",
+Icon = "107865760439298"
+})
+
+UI.Toggle(rgbTab, {
+    Name = "Ativar / Desativar RGB",
+    CurrentValue = true,
+    Callback = function(v)
+        _G.RD4X_RGB.Ativo = v
+    end
+})
+
+UI.Slider(rgbTab, {
+    Name = "Velocidade do RGB",
+    Min = 1,
+    Max = 100,
+    CurrentValue = _G.RD4X_RGB.Velocidade,
+    Suffix = "%",
+    Callback = function(val)
+        _G.RD4X_RGB.Velocidade = val
+    end
+})
+
+UI.Dropdown(rgbTab, {
+    Name = "Aplicar em",
+    Options = { "Nome e Bio", "Apenas Nome", "Apenas Bio" },
+    CurrentOption = { _G.RD4X_RGB.Alvo },
+    Callback = function(opt)
+        if opt and opt[1] then
+            _G.RD4X_RGB.Alvo = opt[1]
+        end
+    end
+})
+
+UI.Dropdown(rgbTab, {
+    Name = "Modo de Cor",
+    Options = { "RGB Completo", "Gradiente", "Cor Única" },
+    CurrentOption = { _G.RD4X_RGB.Modo },
+    Callback = function(opt)
+        if opt and opt[1] then
+            _G.RD4X_RGB.Modo = opt[1]
+        end
+    end
+})
+
+UI.Dropdown(rgbTab, {
+    Name = "Faixa / Cor",
+    Options = { "Azul", "Vermelho", "Verde", "Roxo", "Rosa", "Amarelo" },
+    CurrentOption = { _G.RD4X_RGB.FamiliaCor },
+    Callback = function(opt)
+        if opt and opt[1] then
+            _G.RD4X_RGB.FamiliaCor = opt[1]
+        end
+    end
+})
+
+UI.Dropdown(rgbTab, {
+    Name = "Intensidade",
+    Options = { "Suave", "Equilibrada", "Vibrante" },
+    CurrentOption = { _G.RD4X_RGB.Intensidade },
+    Callback = function(opt)
+        if opt and opt[1] then
+            _G.RD4X_RGB.Intensidade = opt[1]
+        end
+    end
+})
