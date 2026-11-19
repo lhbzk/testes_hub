@@ -694,107 +694,79 @@ local function obterChaoParaSpawn(posicaoBase)
     return fallback, posicaoBase
 end
 
-local function criarPropIndividual(posicaoDesejada)
-    local propMaker = pegarPropMaker() --[span_5](start_span)[span_5](end_span)
-    if not propMaker then return nil end
+local function coletarPropsDisponiveis(limite)
+    local encontrados = encontrarMeusProps() --[span_1](start_span)[span_1](end_span)
+    local validos = {}
+    local vistos = {}
 
-    local toolProp = propMaker:FindFirstChild("Tool_PropMake") or propMaker:FindFirstChildOfClass("RemoteEvent")
-    if not toolProp then return nil end
-
-    local antes = encontrarMeusProps() --[span_6](start_span)[span_6](end_span)
-    local jaExistia = {}
-    for _, p in ipairs(antes) do
-        jaExistia[p] = true
-    end
-
-    local chaoPart, posChao = obterChaoParaSpawn(posicaoDesejada)
-    pcall(function()
-        toolProp:FireServer(chaoPart, posChao)
-    end)
-    pcall(function()
-        propMaker:Activate()
-    end)
-
-    local t0 = tick()
-    while tick() - t0 < 1.8 and propAvancadoAtivo do
-        task.wait(0.08)
-        for _, p in ipairs(encontrarMeusProps()) do --[span_7](start_span)[span_7](end_span)
-            if not jaExistia[p] then
-                return p
+    for _, p in ipairs(encontrados) do
+        if p and p.Parent and not vistos[p] then
+            vistos[p] = true
+            table.insert(validos, p)
+            if limite and #validos >= limite then
+                return validos
             end
         end
     end
 
-    local depois = encontrarMeusProps() --[span_8](start_span)[span_8](end_span)
-    for _, p in ipairs(depois) do
-        if not jaExistia[p] then
-            return p
-        end
-    end
-    return nil
-end
-
-local function obterAlvosSemVoce()
-    local lista = {}
-    local modoEfetivo = modoAlvoProp
-    if funcaoPropSelecionada:find("All") then
-        modoEfetivo = "all"
-    elseif funcaoPropSelecionada:find("(Player)", 1, true) then
-        modoEfetivo = "player"
-    end
-
-    if modoEfetivo == "all" then
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character then
-                local hum = p.Character:FindFirstChildOfClass("Humanoid")
-                local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-                if hum and hrp and hum.Health > 0 then
-                    table.insert(lista, p)
+    -- Fallback: se ainda não bateu o limite, busca outros props com SetCurrentCFrame no WorkspaceCom
+    local WorkspaceCom = Workspace:FindFirstChild("WorkspaceCom")
+    if WorkspaceCom then
+        for _, container in ipairs(WorkspaceCom:GetChildren()) do
+            for _, prop in ipairs(container:GetChildren()) do
+                if prop and prop.Parent and not vistos[prop] then
+                    if prop:FindFirstChild("SetCurrentCFrame") then
+                        vistos[prop] = true
+                        table.insert(validos, prop)
+                        if limite and #validos >= limite then
+                            return validos
+                        end
+                    end
                 end
             end
         end
-    else
-        local alvo = alvoPropSelecionado and Players:FindFirstChild(alvoPropSelecionado) --[span_9](start_span)[span_9](end_span)
-        if alvo and alvo ~= LocalPlayer and alvo.Character then
-            local hum = alvo.Character:FindFirstChildOfClass("Humanoid")
-            local hrp = alvo.Character:FindFirstChild("HumanoidRootPart")
-            if hum and hrp and hum.Health > 0 then
-                table.insert(lista, alvo)
-            end
-        end
     end
 
-    return lista
+    return validos
 end
 
--- FASE 1: Spawna todos os 20 props (no modo all) ou 1 prop (no modo player) antes de sair
 local function spawnarLoteCompleto(modoEfetivo, posBase)
     local quantidadeDesejada = (modoEfetivo == "all") and TOTAL_PROPS_ALL or 1
-    local propsLista = encontrarMeusProps() --[span_10](start_span)[span_10](end_span)
+    local propsAtuais = coletarPropsDisponiveis(quantidadeDesejada)
 
-    while #propsLista < quantidadeDesejada and propAvancadoAtivo do
-        local idx = #propsLista + 1
-        local angulo = (idx / quantidadeDesejada) * math.pi * 2
-        local offset = Vector3.new(math.cos(angulo) * 4, 0, math.sin(angulo) * 4)
-        local novoProp = criarPropIndividual(posBase + offset)
-        if novoProp then
-            table.insert(propsLista, novoProp)
-        else
-            task.wait(0.15)
-        end
-        task.wait(0.12)
+    if #propsAtuais >= quantidadeDesejada then
+        return propsAtuais
     end
 
-    local validos = {}
-    for _, p in ipairs(encontrarMeusProps()) do --[span_11](start_span)[span_11](end_span)
-        if p and p.Parent then
-            table.insert(validos, p)
-            if #validos >= quantidadeDesejada then
-                break
-            end
+    local faltam = quantidadeDesejada - #propsAtuais
+    local maxCiclos = faltam + 8 -- Margem caso algum disparo falhe ou demore
+    local ciclos = 0
+
+    while #propsAtuais < quantidadeDesejada and ciclos < maxCiclos and propAvancadoAtivo do
+        ciclos = ciclos + 1
+
+        -- Garante que o PropMaker está equipado antes de disparar
+        local propMaker = pegarPropMaker() --[span_2](start_span)[span_2](end_span)
+        local toolProp = propMaker and (propMaker:FindFirstChild("Tool_PropMake") or propMaker:FindFirstChildOfClass("RemoteEvent"))
+
+        if propMaker and toolProp then
+            local angulo = (ciclos / quantidadeDesejada) * math.pi * 2
+            local offset = Vector3.new(math.cos(angulo) * 4, 0, math.sin(angulo) * 4)
+            local chaoPart, posChao = obterChaoParaSpawn(posBase + offset)
+
+            pcall(function()
+                toolProp:FireServer(chaoPart, posChao)
+            end)
+            pcall(function()
+                propMaker:Activate()
+            end)
         end
+
+        task.wait(0.22)
+        propsAtuais = coletarPropsDisponiveis(quantidadeDesejada)
     end
-    return validos
+
+    return coletarPropsDisponiveis(quantidadeDesejada)
 end
 
 -- FASE 2: Todos os props ativos vão atrás de 1 alvo cada, executam Kill/Bring ao sentar e trocam rápido
