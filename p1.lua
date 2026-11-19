@@ -1008,7 +1008,7 @@ function UI.InfoBlock(parent, opts)
     end
 
     local title = Instance.new("TextLabel", frame)
-    title.Size = UDim2.new(1, -textOffset, opts.Description and 16 or 24, 0)
+    title.Size = UDim2.new(1, -textOffset, 0, opts.Description and 16 or 24)
     title.Position = UDim2.new(0, textOffset, 0, opts.Description and 2 or 0)
     title.BackgroundTransparency = 1
     title.Text = opts.Title or "Título"
