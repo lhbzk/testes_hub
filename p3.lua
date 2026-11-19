@@ -585,3 +585,161 @@ UI.Button(Tabs.Troll, {
     Description = "Apaga todos os props do mapa",
     Callback = function() deletarTodosProps(); Notify("Props", "Props deletados", 2) end,
 })
+
+
+--------------------------------------------------------------------------------
+-- TROLL AÉREO (CHINOOK VIP)
+--------------------------------------------------------------------------------
+UI.InfoBlock(Tabs.Troll, {
+    Title = "Funções | Gamepass VIP/PREMIUM",
+    Description = "Apenas quem tem Gamepass VIP consegue usar.",
+    Icon = "5197571759"
+})
+
+local prisaoHelicopteroAtiva = false
+local alvoPrisao = nil
+
+local function encontrarMeuChinook()
+    local pastaVeiculos = Workspace:FindFirstChild("Vehicles") or Workspace
+    for _, obj in ipairs(pastaVeiculos:GetDescendants()) do
+        if obj:IsA("Model") and obj.Name:find("Chinook") then
+            local owner = obj:FindFirstChild("Owner") or obj:FindFirstChild("Player")
+            if (owner and tostring(owner.Value) == LocalPlayer.Name) or obj.Name:find(LocalPlayer.Name) then
+                return obj
+            end
+        end
+    end
+    return nil
+end
+
+local function iniciarPrisaoAerea(playerAlvo)
+    prisaoHelicopteroAtiva = true
+    alvoPrisao = playerAlvo
+
+    task.spawn(function()
+        local charLocal = LocalPlayer.Character
+        local hrpLocal = charLocal and charLocal:FindFirstChild("HumanoidRootPart")
+        local humLocal = charLocal and charLocal:FindFirstChildOfClass("Humanoid")
+        if not hrpLocal or not humLocal then
+            prisaoHelicopteroAtiva = false
+            return
+        end
+
+        local spawner = Workspace:FindFirstChild("AirVehicleSpawner")
+        if spawner and spawner:IsA("BasePart") then
+            hrpLocal.CFrame = spawner.CFrame + Vector3.new(0, 5, 0)
+        elseif spawner and spawner:IsA("Model") and spawner.PrimaryPart then
+            hrpLocal.CFrame = spawner.PrimaryPart.CFrame + Vector3.new(0, 5, 0)
+        end
+        task.wait(0.4)
+
+        local ok = pcall(function()
+            local remote = spawner and spawner:FindFirstChild("SpawnVehicle")
+            if remote then
+                remote:InvokeServer("ChinookAgency")
+            end
+        end)
+
+        task.wait(1.2)
+        local heli = encontrarMeuChinook()
+
+        if not ok or not heli then
+            prisaoHelicopteroAtiva = false
+            Notify("Erro VIP", "Não foi possível spawnar. Apenas quem tem Gamepass VIP consegue!", 4)
+            return
+        end
+
+        local assentoPiloto = heli:FindFirstChildWhichIsA("VehicleSeat", true)
+        local assentosPassageiros = {}
+        for _, d in ipairs(heli:GetDescendants()) do
+            if d:IsA("Seat") and not d:IsA("VehicleSeat") then
+                table.insert(assentosPassageiros, d)
+            end
+        end
+
+        if assentoPiloto and #assentosPassageiros > 0 then
+            assentoPiloto:Sit(humLocal)
+            task.wait(0.3)
+        else
+            prisaoHelicopteroAtiva = false
+            return
+        end
+
+        local alturaPrisao = 180
+        local pontoBaseCFrame = nil
+
+        while prisaoHelicopteroAtiva and heli and heli.Parent and alvoPrisao and alvoPrisao.Parent do
+            local charAlvo = alvoPrisao.Character
+            local hrpAlvo = charAlvo and charAlvo:FindFirstChild("HumanoidRootPart")
+            local humAlvo = charAlvo and charAlvo:FindFirstChildOfClass("Humanoid")
+
+            if not hrpAlvo or not humAlvo or humAlvo.Health <= 0 then
+                task.wait(0.5)
+                continue
+            end
+
+            local alvoSentado = false
+            for _, seat in ipairs(assentosPassageiros) do
+                if seat.Occupant == humAlvo then
+                    alvoSentado = true
+                    break
+                end
+            end
+
+            for _, part in ipairs(heli:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.AssemblyLinearVelocity = Vector3.zero
+                    part.AssemblyAngularVelocity = Vector3.zero
+                end
+            end
+
+            if alvoSentado then
+                if not pontoBaseCFrame then
+                    pontoBaseCFrame = CFrame.new(hrpAlvo.Position + Vector3.new(0, alturaPrisao, 0))
+                end
+                heli:PivotTo(pontoBaseCFrame)
+            else
+                local assentoLivre = nil
+                for _, seat in ipairs(assentosPassageiros) do
+                    if seat.Occupant == nil then
+                        assentoLivre = seat
+                        break
+                    end
+                end
+
+                if assentoLivre then
+                    local offsetAssento = heli:GetPivot():ToObjectSpace(assentoLivre.CFrame)
+                    local alvoCFrame = hrpAlvo.CFrame * offsetAssento:Inverse()
+                    heli:PivotTo(alvoCFrame)
+                end
+            end
+
+            task.wait(0.05)
+        end
+
+        pontoBaseCFrame = nil
+    end)
+end
+
+UI.Toggle(Tabs.Troll, {
+    Name = "Jail Helicóptero VIP ",
+    Description = "Apenas quem tem Gamepass VIP consegue usar.",
+    CurrentValue = false,
+    Callback = function(ativo)
+        if ativo then
+            Notify("AVISO VIP", "Apenas quem tem Gamepass VIP consegue usar!", 4)
+            local nomeAlvo = AlvoSelecionado
+            local alvo = nomeAlvo and Players:FindFirstChild(nomeAlvo)
+            if not alvo then
+                prisaoHelicopteroAtiva = false
+                Notify("Prisão Aérea", "Selecione um alvo válido!", 3)
+                return
+            end
+            iniciarPrisaoAerea(alvo)
+        else
+            prisaoHelicopteroAtiva = false
+            alvoPrisao = nil
+            Notify("Prisão Aérea", "Desligado.", 2)
+        end
+    end
+})
