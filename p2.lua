@@ -948,9 +948,12 @@ UI.Toggle(rgbTab, {
         _G.RD4X_RGB.Ativo = v
         if v then
             iniciarLoopRGB()
+        else
+            rgbLoopId = rgbLoopId + 1
         end
     end
 })
+
 
 
 UI.Slider(rgbTab, {
@@ -1007,6 +1010,49 @@ UI.Dropdown(rgbTab, {
         end
     end
 })
+local rgbLoopId = 0
+
+function iniciarLoopRGB()
+    rgbLoopId = rgbLoopId + 1
+    local meuLoopId = rgbLoopId
+    local minhaSessao = _G.RD4X_SessionId
+
+    task.spawn(function()
+        local ciclo = 0
+        while _G.RD4X_RGB
+            and _G.RD4X_RGB.Ativo
+            and meuLoopId == rgbLoopId
+            and (minhaSessao == nil or _G.RD4X_SessionId == minhaSessao) do
+
+            local cfg = _G.RD4X_RGB
+            local RE = ReplicatedStorage:FindFirstChild("RE")
+            local rpColor = RE and RE:FindFirstChild("1RPNam1eColo1r")
+
+            local passo, delay = obterParametrosVelocidade(cfg.Velocidade)
+            ciclo = (ciclo + passo) % 1
+            local corAtual = calcularCorRGB(ciclo)
+
+            local usarNome = (cfg.Alvo == "Nome e Bio" or cfg.Alvo == "Apenas Nome")
+            local usarBio = (cfg.Alvo == "Nome e Bio" or cfg.Alvo == "Apenas Bio")
+
+            if rpColor and rpColor.Parent then
+                if usarNome then
+                    pcall(function()
+                        rpColor:FireServer("PickingRPNameColor", corAtual)
+                    end)
+                end
+                if usarBio then
+                    pcall(function()
+                        rpColor:FireServer("PickingRPBioColor", corAtual)
+                    end)
+                end
+            end
+
+            task.wait(delay)
+        end
+    end)
+end
+
 -- =========================
 -- LOOP DO RGB (CONTROLADO)
 -- =========================
