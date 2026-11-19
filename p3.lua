@@ -585,13 +585,12 @@ UI.Button(Tabs.Troll, {
     Description = "Apaga todos os props do mapa",
     Callback = function() deletarTodosProps(); Notify("Props", "Props deletados", 2) end,
 })
-
 --------------------------------------------------------------------------------
 -- TROLL AÉREO (CHINOOK MILITARY)
 --------------------------------------------------------------------------------
 UI.InfoBlock(Tabs.Troll, {
-    Title = "🚁 Veículos VIP | Prisão Aérea",
-    Description = "Apenas quem tem Gamepass VIP consegue usar. Prende o alvo no alto.",
+    Title = "🚁 Veículos | Prisão Aérea",
+    Description = "Spawna o helicóptero e prende o alvo no alto.",
     Icon = "5197571759"
 })
 
@@ -601,7 +600,7 @@ local alvoPrisao = nil
 local function encontrarMeuChinook()
     local pastaVeiculos = Workspace:FindFirstChild("Vehicles") or Workspace
     for _, obj in ipairs(pastaVeiculos:GetDescendants()) do
-        if obj:IsA("Model") and obj.Name:find("Chinook") then
+        if obj:IsA("Model") and (obj.Name:find("Chinook") or obj.Name:find("Helicopter")) then
             local owner = obj:FindFirstChild("Owner") or obj:FindFirstChild("Player")
             if (owner and tostring(owner.Value) == LocalPlayer.Name) or obj.Name:find(LocalPlayer.Name) then
                 return obj
@@ -626,42 +625,34 @@ local function iniciarPrisaoAerea(playerAlvo)
 
         -- 1. Teleporta para X: -311 | Y: 62 | Z: 74
         hrpLocal.CFrame = CFrame.new(-311, 62, 74)
-        task.wait(0.4)
+        task.wait(0.35)
 
-        -- 2. Dispara TelemetryClientInteraction
-        pcall(function()
-            local remotesFolder = ReplicatedStorage:FindFirstChild("Remotes")
-            local telemetryRemote = remotesFolder and remotesFolder:FindFirstChild("TelemetryClientInteraction")
-            if telemetryRemote then
-                telemetryRemote:FireServer("adRequest", {
-                    adType = "Rewarded Video",
-                    retryAttempt = 1,
-                    category = "Load in",
-                    trigger = "Recheck",
-                    isAvailable = false,
-                    placementId = "811291360932674",
-                    response = "InternalError"
-                })
-            end
-        end)
+        -- 2. Chama o SpawnVehicle com ChinookMilitary
+        local spawnRemote = Workspace:FindFirstChild("AirVehicleSpawner")
+            and Workspace.AirVehicleSpawner:FindFirstChild("SpawnVehicle")
 
-        task.wait(0.3)
+        if spawnRemote and spawnRemote:IsA("RemoteFunction") then
+            task.spawn(function()
+                pcall(function()
+                    spawnRemote:InvokeServer("ChinookMilitary")
+                end)
+            end)
+        end
 
-        -- 3. Invoca o ChinookMilitary
-        local ok = pcall(function()
-            local spawner = Workspace:FindFirstChild("AirVehicleSpawner")
-            local spawnRemote = spawner and spawner:FindFirstChild("SpawnVehicle")
-            if spawnRemote then
-                spawnRemote:InvokeServer("ChinookMilitary")
-            end
-        end)
+        -- 3. Aguarda o veículo aparecer; se o tempo passar sem gerar, avisa
+        local heli = nil
+        local tempoLimite = 2.5
+        local decorrido = 0
+        while decorrido < tempoLimite and prisaoHelicopteroAtiva do
+            heli = encontrarMeuChinook()
+            if heli then break end
+            task.wait(0.2)
+            decorrido = decorrido + 0.2
+        end
 
-        task.wait(1.2)
-        local heli = encontrarMeuChinook()
-
-        if not ok or not heli then
+        if not heli then
             prisaoHelicopteroAtiva = false
-            Notify("Erro VIP", "Não foi possível spawnar. Apenas quem tem Gamepass VIP consegue!", 4)
+            Notify("Prisão Aérea", "Não foi possível gerar", 3)
             return
         end
 
@@ -679,6 +670,7 @@ local function iniciarPrisaoAerea(playerAlvo)
             task.wait(0.3)
         else
             prisaoHelicopteroAtiva = false
+            Notify("Prisão Aérea", "Não foi possível gerar", 3)
             return
         end
 
@@ -741,11 +733,10 @@ end
 
 UI.Toggle(Tabs.Troll, {
     Name = "🚁 Prisão Aérea (Chinook Military)",
-    Description = "Apenas quem tem Gamepass VIP consegue usar. Liga/desliga no alvo.",
+    Description = "Teleporta, tenta gerar o helicóptero e prende o alvo no alto.",
     CurrentValue = false,
     Callback = function(ativo)
         if ativo then
-            Notify("AVISO VIP", "Apenas quem tem Gamepass VIP consegue usar!", 4)
             local nomeAlvo = AlvoSelecionado
             local alvo = nomeAlvo and Players:FindFirstChild(nomeAlvo)
             if not alvo then
@@ -761,3 +752,4 @@ UI.Toggle(Tabs.Troll, {
         end
     end
 })
+ 
